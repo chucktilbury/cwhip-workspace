@@ -18,7 +18,9 @@ rejected at configure time because recursive standard clean needs the
 Makefiles per-language clean-script include. No package downloads or system installs
 are performed. Use `-DCMAKE_BUILD_TYPE=Debug` for compiler/runtime debug
 symbols, or `Release` for optimization. The compiler's normal default is
-preserved when no build type is selected.
+preserved when no build type is selected. GNU/Clang SDK runtimes retain type
+debug metadata even in Release, for source-free debugger object inspection;
+this does not change runtime optimization or bundle system libraries.
 
 GTK 4 >= 4.10 and GtkSourceView 5 development packages are detected through
 pkg-config. When both bindings are enabled, the default build includes the
@@ -83,7 +85,7 @@ In-source builds and binary directories inside a component are rejected.
 `build*` directories immediately under the workspace are ignored by Git;
 other custom binary directories should be outside the source tree.
 
-## Outputs and SDK limitations
+## Outputs and installed SDK boundary
 
 User-facing executables are available in **workspace-root `bin/`**:
 `bin/cwhip`, `bin/cwhip-pkg`, `bin/cedit`, `bin/cedit.bin`, and `bin/cdbg`.
@@ -110,7 +112,8 @@ published. Standard clean removes only links owned by the cleaned build,
 leaving another configuration's links untouched. Manually deleting an active
 binary directory without cleaning can leave dangling links; build again to
 restore them. Root links are ownership-aware, not unconditional clean byproducts.
-This is not an install or relocatable release layout.
+The links themselves are not a distribution. Their target `stage/` is now an
+installed SDK/application prefix; move/copy that entire prefix, not root links.
 
 Intermediates, real executable files, copied resources and generated package
 locks remain in the selected binary directory, here shown as `build/`:
@@ -118,39 +121,65 @@ locks remain in the selected binary directory, here shown as `build/`:
 | Path | Contents |
 | --- | --- |
 | `compiler-build/` | Separate compiler CMake configuration and object files |
+| `compiler-stage/` | Compiler build outputs/resources, separate from installation |
 | `stage/bin/` | `cwhip`, generated `cwhip-pkg`, `cedit` launcher, `cedit.bin`, `cdbg` |
 | `stage/lib/cwhip/` | Runtime archive |
-| `stage/include/cwhip/` | Staged runtime headers |
+| `stage/include/cwhip/` | Installed public runtime headers |
+| `stage/lib/cmake/Cwhip/` | Exact-version installed CMake SDK contract |
 | `stage/share/cwhip/builtin/` | Builtin language sources |
 | `stage/share/cwhip/modules/` | Standard packages, SQLite/GTK native archives, SourceView language resources |
-| `apps/cedit/`, `apps/cdbg/` | Copied external sources, private HOME/XDG directories, package manifest and lock; debugger `values.h` |
+| `apps/cedit/`, `apps/cdbg/` | Independent app CMake build trees, native objects, private source projects/locks/HOME/XDG; debugger `values.h` |
 | `tests/` | Focused test binaries, fixtures and isolated configuration |
 | `website/doc/website/site/` | Explicitly generated site |
-| `test-all/` | Full compiler Debug build/stage, external test input adapters, isolated test outputs |
+| `test-all/` | Full compiler Debug build/stage/install, independent app builds and isolated test outputs |
 
-Application builds use the staged compiler's package discovery and
+Application builds use the installed compiler's package discovery and
 `cwhip-pkg init` to lock the standard packages. Runtime/include/builtin/module
-paths are set to the private stage, legacy and user module overrides are
+paths are set to the selected installed prefix, legacy and user module overrides are
 cleared, and HOME/XDG configuration is isolated per app. No user package
 configuration is imported. Changes to native archives, SDK headers/resources,
 package manifests, app sources, launcher, terminal helper and inspector/embed
 scripts participate in incremental dependencies. Source copies are refreshed
 when rebuilding an app, so removed files cannot linger in its staged sources.
 
-This is a **temporary in-tree SDK bootstrap**, not an independently consumable
-SDK or release/install packaging. The workspace uses the compiler's private
-resource layout, native archive names, package implementation and C headers.
-GTK native code still knows the compiler source language-resource path in
-addition to the private stage's install-resource path. Keep the pinned source
-checkouts and build directory available; moving/releasing this stage is not
-promised. App options changed in an existing directory may leave old binaries
-in the stage, but their named targets still fail when disabled. Use a new
-binary directory for a pristine output set.
+The compiler is built into `compiler-stage/`, then its native CMake install
+rules populate `stage/`. Each application is configured from its own project
+root with `CMAKE_PREFIX_PATH=stage`; the umbrella no longer compiles app sources
+or borrows compiler-owned app fixtures. Both applications own build, test,
+clean and install interfaces. Their installation merges executable files and
+resources into the same private prefix. Installed apps/resources contain no
+required compiler/workspace source path; GTK discovers bundled language
+definitions relative to the running executable.
 
-The compiler's integrated apps, website and install scripts are not built/run
-by the default workspace bootstrap. Full compiler and external app suites are
-available through explicit `test-all`, described below. No component or compiler behavior
-is patched and no Git-link pins are changed.
+The supported boundary is a **whole-prefix, exact-version prototype SDK**,
+not literal executable-only portability or production release packaging.
+The bundle needs runtime archive, public headers, builtins, standard packages
+and native archives as well as cwhip/cwhip-pkg. External Clang, Python, Git
+(for explicit package installation), native platform/GUI development and
+runtime libraries remain prerequisites. See the compiler's
+[SDK contract](../compiler/doc/CMAKE-SDK.md), editor's
+[standalone build](../editor/doc/BUILD.md) and debugger's
+[standalone build](../debugger/doc/BUILD.md). For example:
+
+```sh
+cp -a build/stage /chosen/relocated-sdk
+cmake -S editor -B /chosen/editor-build \
+  -DCMAKE_PREFIX_PATH=/chosen/relocated-sdk
+cmake --build /chosen/editor-build --target test-all
+cmake --install /chosen/editor-build --prefix /chosen/editor-install
+```
+
+Replace `editor` with `debugger` for cdbg. These projects can be copied or
+cloned outside the umbrella without compiler checkout paths. Install the
+compiler independently using its documented `CWHIP_STAGE_PREFIX` and separate
+`CMAKE_INSTALL_PREFIX` if no umbrella is wanted.
+App options changed in an existing workspace directory can leave old private
+installed files, but disabled named targets still fail and root links are
+not published. Use a new binary directory for a pristine output set.
+
+The compiler's integrated apps, website and shell install scripts are not
+built/run by the default workspace orchestration. No Git-link pins change.
+Component implementation changes remain owned by their respective repositories.
 
 ## Clean
 
@@ -162,19 +191,21 @@ cmake --build build --clean-first --parallel 4
 ```
 
 This is CMake's **standard clean target**, not a replacement named target.
-It propagates to the nested compiler's native clean target, removing compiler
-objects and archives. It then removes this binary directory's entire private
-stage, generated app source copies/native headers/package locks/HOME/config,
+It propagates to the compiler and configured app native clean targets,
+removing their objects and artifacts. It then removes this binary directory's
+compiler build stage, entire installed private stage,
+app build trees, generated source copies/native headers/package locks/HOME/config,
 test outputs and logs, full `test-all/` trees, and generated website staging.
 Root native objects/executables are removed by CMake's own native clean rules.
 The source tree, pins, other binary directories and their published links
 are preserved. Repeated clean is harmless.
 
-Root and nested CMake caches/Makefiles, dependency metadata and configured
-input inventories are retained. An ordinary subsequent build reruns the
-nested compiler configure before building to recreate configured package
-tools and staged directories. App/test commands recreate their private
-directories. No manual configure step is required after clean.
+Root and nested compiler caches/Makefiles and dependency metadata are
+retained. An ordinary subsequent build reruns the compiler configure/build/
+install, then recreates independent app configurations before building and
+installing them. No manual configure step is required after clean. Standalone
+app clean preserves its own configure state and input inventories for direct
+rebuild without reconfiguration.
 The website remains opt-in and must be regenerated explicitly.
 
 The propagation hook is configured from `cmake/CleanHook.cmake.in` into a
@@ -257,21 +288,24 @@ documentation programs and enabled GTK binding checks. It does not invoke
 The compiler CTest excludes `cedit_*`, `cdbg_*` and
 `cwhip_example_editor_*`: those exercise compiler-monorepo app duplicates,
 not the extracted apps. The target prints that exclusion and instead runs
-the external editor's build, binary/default-shortcut smoke, shortcuts,
-four preference groups and four
-project groups, plus compiler-owned project-explorer/dialog fixture drivers
-with **editor/src/cedit.cw** explicitly selected. It runs the external
-debugger's build, MI parser and local-GDB session runner with a private copy
-of **debugger/src** and its own test fixtures.
-
-The split app runners still assume some monorepo fixture paths. A private
-adapter copies their unchanged runners, supplies the compiler-owned native
-editor fixture files missing from the extracted repository, and arranges the
-debugger's required tools/tests/include layout under `test-all/external-inputs`.
-It never substitutes the compiler's app sources or modifies any submodule.
+the standalone editor's actual binary/default-shortcut smoke, shortcuts,
+four preference groups, four project groups and editor-owned
+project-explorer/dialog fixtures. It runs the standalone debugger's native
+terminal/embedded script, MI parser and local-GDB session tests. App CMake
+projects consume the installed Debug SDK, not compiler test sources or
+an umbrella fixture adapter. The umbrella additionally passes
+`CDBG_RUNTIME_SOURCE` to cover compiler-private source-line stepping in the
+matching Debug runtime and labels that source-specific integration explicitly.
+Source-free standalone suites do not require that file; they visibly exclude
+only the private-runtime source-line check, while other applicable
+inspection/session regressions still run.
 Workspace CTests run as well, including status, publication, clean-helper
 unit tests and website Markdown/assets/manifest tests; the pinned website
 has no separate test runner.
+The relocated SDK external hello/stdlib/inline-C/native binding, clean/install
+and invalid-prefix/version acceptance also runs. Repeating full app suites
+after independent copying/installation/relocation is the separate opt-in
+`check-sdk` regression, like destructive `clean_checks.py` and `check-noop`.
 
 GTK test programs use ephemeral isolated Xvfb displays and DBus sessions,
 not the user's display. Missing optional Xvfb/DBus, disabled apps/bindings,
@@ -291,14 +325,18 @@ success or download missing tools.
 
 ### Focused checks
 
-The default seven CTest entries cover read-only component diagnostics, existing
+The default six CTest entries cover read-only component diagnostics, existing
 status unit tests plus website tests, native PTY transport, compiler compilation
 and execution through root `bin/cwhip`, root package-tool discovery,
 launcher sibling resolution with a harmless test companion, `bin/cdbg --help`,
 publication switching/repair/no-op behavior, exact embedded inspector bytes, real GDB value
-inspection, unchanged second-build timestamps and the external debugger's MI
+inspection and the external debugger's MI
 parser checks. GDB absence is explicitly reported as a skipped inspector check;
 an installed GDB without the required Python API fails that check.
+Diagnostics report local component edits but only uninitialized/mismatched
+pins fail the CTest (`status.py --allow-dirty`); plain `status.py` remains
+strict. This permits deliberate coordinated development without disguising
+dirty components as clean.
 The inspector fixture links a debug-built runtime object so its private DWARF
 types remain available even when the staged runtime is built without symbols.
 The full compiler/GUI suites are not implied by these focused checks.
@@ -306,6 +344,8 @@ The full compiler/GUI suites are not implied by these focused checks.
 For an explicit dependency probe after a GUI-enabled default build:
 
 ```sh
+cmake --build build --target check-noop
+cmake --build build --target check-sdk
 python3 tests/build_checks.py --mode dependencies --build build
 python3 scripts/status.py
 git submodule status --recursive
@@ -313,9 +353,34 @@ git diff --check
 git status --short
 ```
 
+Ordinary `make test` / CTest reuses built artifacts: it does not invoke the
+workspace's default build again. The explicit `check-noop` target retains
+the incremental-build regression: it snapshots compiler/app/resource and
+publication timestamps, invokes a default build, and fails if anything is
+rewritten. Run it after building the desired configuration; do not run it
+concurrently with another build in that directory. It is intentionally outside
+default CTest and `test-all`, since it re-enters the main build. Compilation
+smoke tests still compile small test programs, not the compiler itself.
+
 This opt-in probe temporarily touches app sources, launcher, MI/terminal
 sources, inspector/embed scripts, a runtime header, a package manifest and
-staged native/runtime archives, requires the relevant binary to rebuild,
+compiler build-stage native/runtime archives, requires the relevant binary to rebuild,
 restores input timestamps in `finally`, then checks a no-op build. It does not
 edit component content; do not run it concurrently with another build in the
 same directory. CTest itself does not touch component timestamps.
+
+`check-sdk` explicitly exercises the installed contract: copy and rename the
+whole prefix into a temporary external path containing spaces, compile/run an
+external CMake hello using standard modules, inline C and a public-header
+native object, reject missing runtime and wrong version, and test clean/
+rebuild/install. With both apps enabled it copies each standalone project
+outside the umbrella, configures it only against that relocated SDK, runs its
+full suite/no-op check, installs/relocates/launches it headlessly or with
+`--help`, and cleans/rebuilds/tests it again. HOME/XDG are empty/private and no
+CWHIP source overrides are inherited. Installed config scripts/path discovery
+are checked for workspace/build-stage leakage. Debug DWARF can name original
+source files but is not a runtime resource fallback. The test removes its
+ephemeral external tree/displays/session buses on completion.
+It explicitly uses a private `/tmp` child rather than inherited `TMPDIR`, so
+even invocation from `test-all` stays outside the umbrella source/binary tree.
+The check visibly excludes app relocation when both GUI apps are not enabled.

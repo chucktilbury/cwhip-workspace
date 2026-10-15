@@ -19,17 +19,14 @@ def clean(build: Path, public_bin: Path) -> None:
         link = public_bin / name
         if link.is_symlink() and link.readlink() == stage / "bin" / name:
             link.unlink()
-    for name in ("stage", "tests", "website", "Testing", "test-all"):
+    for name in ("stage", "compiler-stage", "tests", "website", "Testing", "test-all"):
         remove(build / name)
+    # Retire native targets from the previous umbrella-owned application build.
+    for name in ("cedit_launcher", "cdbg_terminal"):
+        remove(build / "CMakeFiles" / (name + ".dir"))
     apps = build / "apps"
-    if apps.is_dir():
-        for app in ("cedit", "cdbg"):
-            project = apps / app
-            if project.is_dir():
-                for child in project.iterdir():
-                    # file(GENERATE) configure state is needed without reconfigure.
-                    if child.name != "inputs.txt":
-                        remove(child)
+    for app in ("cedit", "cdbg"):
+        remove(apps / app)
 
 
 def main() -> None:

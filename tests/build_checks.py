@@ -16,6 +16,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def run(command, work, env=None):
+    if env is None:
+        env = {key: value for key, value in os.environ.items()
+               if key not in ("MAKEFLAGS", "MFLAGS", "MAKELEVEL")}
     result = subprocess.run([str(item) for item in command], cwd=work, env=env,
                             text=True, capture_output=True, timeout=120)
     if result.returncode:
@@ -26,9 +29,11 @@ def run(command, work, env=None):
 def environment(work):
     env = {k: v for k, v in os.environ.items()
            if not k.startswith("CWHIP_") and k not in ("CC", "DESTDIR")}
-    for key, name in (("HOME", "home"), ("XDG_CONFIG_HOME", "xdg")):
+    for key, name in (("HOME", "home"), ("XDG_CONFIG_HOME", "xdg"),
+                      ("XDG_DATA_HOME", "data"), ("XDG_CACHE_HOME", "cache"),
+                      ("XDG_STATE_HOME", "state"), ("XDG_RUNTIME_DIR", "runtime")):
         directory = work / name
-        directory.mkdir(parents=True, exist_ok=True)
+        directory.mkdir(mode=0o700, parents=True, exist_ok=True)
         env[key] = str(directory)
     return env
 
@@ -41,7 +46,7 @@ def outputs(build):
         path = stage / "bin" / name
         if path.exists():
             paths.append(path)
-    paths.extend((build / "apps").glob("*/cwhip-pkg.*"))
+    paths.extend((build / "apps").glob("*/*-project/cwhip-pkg.*"))
     paths.extend(stage.glob("share/cwhip/modules/*/*/lib/*.a"))
     result = {path: path.stat().st_mtime_ns for path in paths}
     for path in (ROOT / "bin").iterdir():
@@ -87,9 +92,9 @@ def main():
             (ROOT / "debugger/src/embed_values.py", "cdbg"),
             (ROOT / "compiler/include/cwhip/RuntimeGc.h", "cdbg"),
             (ROOT / "compiler/stdlib/gtk/0.1.0/cwhip-package.toml", "cdbg"),
-            (build / "stage/share/cwhip/modules/gtk/0.1.0/lib/libcwhip_gtk.a", "cdbg"),
-            (build / "stage/share/cwhip/modules/sqlite/0.1.0/lib/libcwhip_sqlite.a", "cedit.bin"),
-            (build / "stage/lib/cwhip/libcwhip_runtime.a", "cdbg"),
+            (build / "compiler-stage/share/cwhip/modules/gtk/0.1.0/lib/libcwhip_gtk.a", "cdbg"),
+            (build / "compiler-stage/share/cwhip/modules/sqlite/0.1.0/lib/libcwhip_sqlite.a", "cedit.bin"),
+            (build / "compiler-stage/lib/cwhip/libcwhip_runtime.a", "cdbg"),
         ]
         for source, name in probes:
             output = build / "stage/bin" / name

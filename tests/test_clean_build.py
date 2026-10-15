@@ -19,8 +19,9 @@ class CleanTests(unittest.TestCase):
             public = root / "bin"
             public.mkdir()
             for base in (build, other):
-                for name in ("stage/bin", "tests", "website", "Testing", "test-all",
-                             "apps/cedit/home", "apps/cdbg/src", "compiler-build"):
+                for name in ("stage/bin", "compiler-stage", "tests", "website", "Testing", "test-all",
+                             "apps/cedit/home", "apps/cdbg/src", "compiler-build",
+                             "CMakeFiles/cedit_launcher.dir", "CMakeFiles/cdbg_terminal.dir"):
                     (base / name).mkdir(parents=True)
                     (base / name / "artifact").touch()
                 for app in ("cedit", "cdbg"):
@@ -34,11 +35,15 @@ class CleanTests(unittest.TestCase):
             self.assertFalse((public / "cwhip").is_symlink())
             self.assertEqual((public / "cdbg").readlink(), other / "stage/bin/cdbg")
             self.assertEqual((public / "cedit").read_text(), "unowned regular file")
-            for name in ("stage", "tests", "website", "Testing", "test-all"):
+            for name in ("stage", "compiler-stage", "tests", "website", "Testing", "test-all"):
                 self.assertFalse((build / name).exists(), name)
                 self.assertTrue((other / name / ("bin/artifact" if name == "stage" else "artifact")).exists())
             for app in ("cedit", "cdbg"):
-                self.assertEqual([p.name for p in (build / "apps" / app).iterdir()], ["inputs.txt"])
+                self.assertFalse((build / "apps" / app).exists())
+                self.assertTrue((other / "apps" / app / "inputs.txt").is_file())
+            for name in ("cedit_launcher", "cdbg_terminal"):
+                self.assertFalse((build / "CMakeFiles" / (name + ".dir")).exists())
+                self.assertTrue((other / "CMakeFiles" / (name + ".dir") / "artifact").is_file())
             self.assertTrue((build / "CMakeCache.txt").exists())
             self.assertTrue((build / "compiler-build/artifact").exists())
 

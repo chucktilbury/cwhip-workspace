@@ -2,8 +2,9 @@
 
 This umbrella records a tested selection of component revisions, not copies of
 their source. The Git links in each workspace commit are the source of truth.
-The [top-level CMake build](BUILD.md) bootstraps the compiler and external apps
-with a private binary-tree stage. There is no unified install, release, or
+The [top-level CMake build](BUILD.md) builds/installs the compiler SDK, then
+configures standalone applications against that private installed prefix.
+There is no unified public release or
 upload command here.
 
 ## Clone and restore pinned revisions
@@ -103,12 +104,14 @@ They require CMake, a C11/C++17 toolchain, Clang on PATH, POSIX facilities, and
 Python 3.11 or newer for package tooling. Optional GUI dependencies are
 documented there; this workspace does not install system packages.
 
-Use [BUILD.md](BUILD.md) for the verified umbrella bootstrap, which configures
-the pinned compiler in `build/compiler-build` with `build/stage` as its private
-resource prefix. User-facing executables are published as maintained links in
+Use [BUILD.md](BUILD.md) for the umbrella orchestration, which configures
+the compiler in `build/compiler-build`, builds into `build/compiler-stage`,
+and installs the whole SDK to `build/stage`. User-facing executables are published as maintained links in
 workspace-root `bin/`; the last build selects the active private stage.
-It does not run the compiler's install script. A supported,
-versioned SDK for external applications remains work in
+It uses CMake install, never the compiler's shell install script. The
+exact-version installed contract is described in
+[`compiler/doc/CMAKE-SDK.md`](../compiler/doc/CMAKE-SDK.md);
+future compatibility/release work remains tracked in
 [chucktilbury/cwhip#1](https://github.com/chucktilbury/cwhip/issues/1).
 Acceptance includes a clean install prefix with no source-tree assumptions
 and documented compatible versions. Do not treat today's integrated application
@@ -123,15 +126,15 @@ explicit compiler compatibility policy:
 - [chucktilbury/cedit#1](https://github.com/chucktilbury/cedit/issues/1)
 - [chucktilbury/cdbg#1](https://github.com/chucktilbury/cdbg/issues/1)
 
-The pinned external application repositories have **no standalone build
-scripts of their own**. Their current
-[`editor/README.md`](../editor/README.md) and
-[`debugger/README.md`](../debugger/README.md) refer to the compiler's integrated
-prototype workflows. Those build the copies still in the compiler repository,
-not these external submodules. The umbrella instead reuses that build logic
-with `editor/src` and `debugger/src`, including the launcher, terminal native
-helper and embedded inspector. This is temporary in-tree SDK coupling, not
-completion of standalone SDK or release packaging. GTK 4 >= 4.10 and
+The application projects own independent CMake/build/test/clean/install
+interfaces and fixtures. See their
+[`editor/doc/BUILD.md`](../editor/doc/BUILD.md) and
+[`debugger/doc/BUILD.md`](../debugger/doc/BUILD.md). Configure either with
+`-DCMAKE_PREFIX_PATH=/path/to/installed-sdk`; no compiler/workspace checkout
+is required. The umbrella invokes those same interfaces, not the compiler's
+integrated app duplicates. They remain proof-of-concept applications, and
+packaging/CI/release compatibility beyond SDK 0.0.1 remains separate work.
+GTK 4 >= 4.10 and
 GtkSourceView 5 are application dependencies; `cdbg`
 also needs GDB, and its value inspector needs Python-enabled GDB with
 `gdb.MICommand`. Compiling `.cw` debugger targets needs Cwhip.
@@ -192,7 +195,9 @@ initialization, build, or upload. Pins come from workspace `HEAD`, so a staged
 Git-link update still reports a mismatch until it is committed. It does not
 replace component tests or check SDK/API compatibility. CTest also runs the
 diagnostic unit tests, website adapter tests, compilation smoke, native
-terminal test, MI parser, embedded inspector and no-op build checks.
+terminal test, MI parser and embedded inspector. Ordinary `make test` reuses
+the completed build; `cmake --build build --target check-noop` explicitly
+checks a second incremental build without making CTest rebuild the main tree.
 [BUILD.md](BUILD.md#validation) lists the opt-in timestamp/dependency probes.
 `test-all` includes headless isolated Xvfb/DBus app suites when dependencies
 are available and prints exclusions for missing optional tools. It uses the

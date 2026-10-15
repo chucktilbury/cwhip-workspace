@@ -4,6 +4,16 @@ execute_process(
 if(NOT result EQUAL 0)
     message(FATAL_ERROR "Nested compiler clean failed (${result})")
 endif()
+foreach(app cedit cdbg)
+    if(EXISTS "@CMAKE_BINARY_DIR@/apps/${app}/CMakeCache.txt")
+        execute_process(
+            COMMAND "@CMAKE_COMMAND@" --build "@CMAKE_BINARY_DIR@/apps/${app}" --target clean
+            RESULT_VARIABLE result)
+        if(NOT result EQUAL 0)
+            message(FATAL_ERROR "Nested ${app} clean failed (${result})")
+        endif()
+    endif()
+endforeach()
 execute_process(
     COMMAND "@Python3_EXECUTABLE@" "@CMAKE_SOURCE_DIR@/scripts/clean_build.py"
         --build "@CMAKE_BINARY_DIR@" --public-bin "@workspace_public_bin@"

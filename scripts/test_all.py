@@ -22,9 +22,11 @@ def main() -> None:
            if not key.startswith("CWHIP_") and key not in
            ("DESTDIR", "CC", "DISPLAY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS",
             "MAKEFLAGS", "MFLAGS", "MAKELEVEL", "CTEST_PARALLEL_LEVEL")}
-    for key, name in (("HOME", "home"), ("XDG_CONFIG_HOME", "xdg")):
+    for key, name in (("HOME", "home"), ("XDG_CONFIG_HOME", "xdg"),
+                      ("XDG_DATA_HOME", "data"), ("XDG_CACHE_HOME", "cache"),
+                      ("XDG_STATE_HOME", "state"), ("XDG_RUNTIME_DIR", "runtime")):
         path = work / name
-        path.mkdir(exist_ok=True)
+        path.mkdir(mode=0o700, exist_ok=True)
         env[key] = str(path)
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     temporary = work / "tmp"
@@ -43,10 +45,11 @@ def main() -> None:
               "bindings, Xvfb and dbus-daemon.", flush=True)
     suite = work / "compiler-build"
     stage = work / "stage"
+    prefix = work / "sdk"
     run(args.cmake, "-S", source / "compiler", "-B", suite, "-G", "Unix Makefiles",
         f"-DCMAKE_C_COMPILER={args.cc}", f"-DCMAKE_CXX_COMPILER={args.cxx}",
         "-DCMAKE_BUILD_TYPE=Debug", "-DBUILD_TESTING=ON",
-        f"-DCWHIP_STAGE_PREFIX={stage}", f"-DCMAKE_INSTALL_PREFIX={stage}",
+        f"-DCWHIP_STAGE_PREFIX={stage}", f"-DCMAKE_INSTALL_PREFIX={prefix}",
         "-DCMAKE_INSTALL_LIBDIR=lib", "-DCMAKE_INSTALL_BINDIR=bin",
         "-DCMAKE_INSTALL_INCLUDEDIR=include", "-DCMAKE_INSTALL_DATADIR=share",
         f"-DCWHIP_CLANG_EXECUTABLE={args.clang}",
@@ -55,41 +58,33 @@ def main() -> None:
     run(args.cmake, "--build", suite, "--parallel", "4", "--target", "cwhip",
         "cwhip_tests", "cwhip_command_line_tests", "cwhip_gc_runtime_tests")
 
-    # Split app runners assume compiler-monorepo fixture locations. Assemble
-    # only the layout they need without substituting integrated app sources.
-    adapter = work / "external-inputs"
-    if adapter.exists():
-        shutil.rmtree(adapter)
-    adapter.mkdir()
-    shutil.copytree(source / "editor/tests", adapter / "editor-tests")
-    shutil.copytree(source / "compiler/examples", adapter / "examples")
-    shutil.rmtree(adapter / "examples/editor")
-    shutil.copytree(source / "editor/src", adapter / "examples/editor")
-    for name in ("editor_dialog_fixture.c", "project_explorer_fixture.c", "cwhip_project_fixture.c"):
-        shutil.copy2(source / "compiler/tests" / name, adapter / "editor-tests" / name)
-    shutil.copytree(source / "debugger/tests", adapter / "tests")
-    shutil.copytree(source / "debugger/src", adapter / "tools/cdbg")
-    (adapter / "src").mkdir()
-    shutil.copy2(source / "compiler/src/RuntimeGc.c", adapter / "src/RuntimeGc.c")
-    (adapter / "include").symlink_to(stage / "include", target_is_directory=True)
-
-    external = work / "external-build"
-    run(args.cmake, "-S", source / "cmake/test-all", "-B", external,
-        "-G", "Unix Makefiles", f"-DWORKSPACE_SOURCE={source}",
-        f"-DWORKSPACE_BUILD={build}", f"-DCOMPILER_STAGE={stage}",
-        f"-DADAPTER={adapter}", f"-DCLANG={args.clang}",
-        f"-DHEADLESS={'ON' if headless and sourceview else 'OFF'}",
-        f"-DEDITOR={args.editor if sourceview else 'OFF'}",
-        f"-DDEBUGGER={args.debugger if sourceview else 'OFF'}")
+    run(args.cmake, "--install", suite)
+    app_suites = []
+    for name, enabled in (("editor", args.editor), ("debugger", args.debugger)):
+        if not sourceview or enabled != "ON":
+            print(f"EXCLUDED: standalone {name} (disabled or GUI SDK unavailable)", flush=True)
+            continue
+        app_build = work / name
+        internal_tests = ()
+        if name == "debugger":
+            internal_tests = (f"-DCDBG_RUNTIME_SOURCE={source / 'compiler/src/RuntimeGc.c'}",)
+            print("INCLUDED: compiler-private runtime source-line stepping in umbrella "
+                  "integration only; standalone debugger does not require runtime sources.", flush=True)
+        run(args.cmake, "-S", source / name, "-B", app_build, "-G", "Unix Makefiles",
+            f"-DCMAKE_PREFIX_PATH={prefix}", f"-DCMAKE_C_COMPILER={args.cc}",
+            f"-DCwhip_DIR={prefix / 'lib/cmake/Cwhip'}",
+            "-DCMAKE_BUILD_TYPE=Debug", "-DBUILD_TESTING=ON", *internal_tests)
+        run(args.cmake, "--build", app_build, "--parallel", "4")
+        app_suites.append((name, app_build, ()))
     failures = []
     # Run every suite even if an earlier suite fails, then propagate failure.
-    suites = (
+    suites = [
         ("compiler", suite, ("--exclude-regex", r"^(cedit_|cdbg_|cwhip_example_editor_)")),
-        ("external apps", external, ()),
+        *app_suites,
         ("workspace", build, ()),
-    )
+    ]
     print("EXCLUDED from compiler CTest: integrated cedit_*, cdbg_* and "
-          "cwhip_example_editor_* (monorepo copies). External app runners replace them. "
+          "cwhip_example_editor_* (monorepo copies). Standalone component-owned suites replace them. "
           "Fuzz/sanitizer/coverage instrumentation is not enabled by this target.", flush=True)
     print("Website has no standalone test runner; workspace tests cover its real "
           "Markdown/assets/manifest adapter.", flush=True)
@@ -99,9 +94,14 @@ def main() -> None:
                 "--parallel", "1", *extra)
         except subprocess.CalledProcessError:
             failures.append(name)
+    try:
+        run(sys.executable, source / "tests/sdk_checks.py", "--prefix", prefix,
+            "--cmake", args.cmake, "--ctest", args.ctest, "--apps", "OFF")
+    except subprocess.CalledProcessError:
+        failures.append("relocated SDK external-project contract")
     if failures:
         raise RuntimeError("test-all failed suites: " + ", ".join(failures))
-    print("test-all passed: compiler + external applications + workspace", flush=True)
+    print("test-all passed: compiler + standalone applications + workspace + relocated SDK", flush=True)
 
 
 if __name__ == "__main__":

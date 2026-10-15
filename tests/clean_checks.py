@@ -19,12 +19,11 @@ def links():
 
 
 def assert_clean(build):
-    for name in ("stage", "tests", "website", "Testing", "test-all"):
+    for name in ("stage", "compiler-stage", "tests", "website", "Testing", "test-all"):
         assert not (build / name).exists(), build / name
     for app in ("cedit", "cdbg"):
         project = build / "apps" / app
-        if project.exists():
-            assert {p.name for p in project.iterdir()} <= {"inputs.txt"}, project
+        assert not project.exists(), project
     assert not list((build / "compiler-build").rglob("*.o")), "Nested compiler objects survived"
     assert not list((build / "CMakeFiles").rglob("*.o")), "Root native objects survived"
     for name in ("CMakeCache.txt", "Makefile", "compiler-build/CMakeCache.txt",

@@ -44,9 +44,9 @@ class StatusTests(unittest.TestCase):
         self.git(self.root, "add", ".")
         self.git(self.root, "commit", "-qm", "Initial workspace")
 
-    def run_status(self):
+    def run_status(self, *args):
         return subprocess.run(
-            [sys.executable, str(self.root / "scripts" / "status.py")],
+            [sys.executable, str(self.root / "scripts" / "status.py"), *args],
             cwd=self.temp.name, text=True, capture_output=True,
         )
 
@@ -65,12 +65,16 @@ class StatusTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn(f"editor: pinned={self.pin} current=- UNINITIALIZED", result.stdout)
         self.assertIn("website:", result.stdout)
+        self.assertEqual(self.run_status("--allow-dirty").returncode, 1)
 
     def test_tracked_dirty_component(self):
         (self.root / "editor" / "source.txt").write_text("changed\n")
         result = self.run_status()
         self.assertEqual(result.returncode, 1)
         self.assertIn(f"editor: pinned={self.pin} current={self.pin} DIRTY", result.stdout)
+        allowed = self.run_status("--allow-dirty")
+        self.assertEqual(allowed.returncode, 0, allowed.stderr)
+        self.assertIn("DIRTY", allowed.stdout)
 
     def test_untracked_dirty_component(self):
         (self.root / "debugger" / "new.txt").write_text("untracked\n")
@@ -89,6 +93,7 @@ class StatusTests(unittest.TestCase):
         result = self.run_status()
         self.assertEqual(result.returncode, 1)
         self.assertIn(f"compiler: pinned={self.pin} current={current} MISMATCH", result.stdout)
+        self.assertEqual(self.run_status("--allow-dirty").returncode, 1)
 
     def test_git_error_is_reported(self):
         (self.root / "editor" / ".git").write_text("gitdir: missing\n")

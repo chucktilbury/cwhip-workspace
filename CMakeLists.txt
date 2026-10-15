@@ -3,6 +3,10 @@ if(NOT CMAKE_GENERATOR STREQUAL "Unix Makefiles")
     message(FATAL_ERROR "This bootstrap requires Unix Makefiles for recursive standard clean support. Use -G \"Unix Makefiles\" and a separate build directory per configuration.")
 endif()
 project(cwhip_workspace LANGUAGES C CXX)
+set(workspace_jobserver)
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.28)
+    set(workspace_jobserver JOB_SERVER_AWARE TRUE)
+endif()
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
     message(FATAL_ERROR "Use an out-of-source build: cmake -S . -B build")
@@ -36,6 +40,7 @@ option(CWHIP_BUILD_CEDIT "Include the external editor in the default build" ON)
 option(CWHIP_BUILD_CDBG "Include the external debugger in the default build" ON)
 
 set(workspace_stage "${CMAKE_BINARY_DIR}/stage")
+set(compiler_stage "${CMAKE_BINARY_DIR}/compiler-stage")
 set(compiler_build "${CMAKE_BINARY_DIR}/compiler-build")
 set(workspace_bin "${workspace_stage}/bin")
 set(workspace_public_bin "${CMAKE_SOURCE_DIR}/bin")
@@ -70,7 +75,7 @@ set(compiler_configure "${CMAKE_COMMAND}" -S "${CMAKE_SOURCE_DIR}/compiler" -B "
         "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
         "-DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}"
         "-DPython3_EXECUTABLE=${Python3_EXECUTABLE}"
-        "-DCWHIP_STAGE_PREFIX=${workspace_stage}"
+        "-DCWHIP_STAGE_PREFIX=${compiler_stage}"
         "-DCMAKE_INSTALL_PREFIX=${workspace_stage}"
         -DCMAKE_INSTALL_BINDIR=bin -DCMAKE_INSTALL_LIBDIR=lib
         -DCMAKE_INSTALL_INCLUDEDIR=include -DCMAKE_INSTALL_DATADIR=share
@@ -86,22 +91,25 @@ endif()
 add_custom_target(cwhip ALL
     COMMAND ${compiler_configure}
     COMMAND "${CMAKE_COMMAND}" --build "${compiler_build}" --config "$<CONFIG>" --target cwhip
+    COMMAND "${CMAKE_COMMAND}" -E env --unset=DESTDIR
+        "${CMAKE_COMMAND}" --install "${compiler_build}" --config "$<CONFIG>"
     COMMAND ${workspace_publish} --names cwhip cwhip-pkg
     BYPRODUCTS ${compiler_outputs}
-    USES_TERMINAL VERBATIM)
+    ${workspace_jobserver} USES_TERMINAL VERBATIM)
 
-set(workspace_environment "${CMAKE_COMMAND}" -E env
-    --unset=CWHIP_PACKAGE_PATH --unset=CWHIP_MODULE_REGISTRY --unset=CWHIP_MODULE_DIR
-    --unset=DESTDIR
-    "CWHIP_HOME=${workspace_stage}"
-    "CWHIP_RUNTIME_DIR=${workspace_stage}/lib/cwhip"
-    "CWHIP_INCLUDE_DIR=${workspace_stage}/include"
-    "CWHIP_BUILTIN_DIR=${workspace_stage}/share/cwhip/builtin"
-    "CWHIP_STDLIB_MODULE_DIR=${workspace_modules}"
-    "PYTHONDONTWRITEBYTECODE=1"
-    "CC=${compiler_CWHIP_CLANG_EXECUTABLE}")
-
+include(CTest)
 include(cmake/Applications.cmake)
+set(sdk_check_dependencies cwhip)
+set(sdk_check_apps OFF)
+if(CWHIP_GTK_SOURCEVIEW AND CWHIP_BUILD_CEDIT AND CWHIP_BUILD_CDBG)
+    list(APPEND sdk_check_dependencies cedit cdbg)
+    set(sdk_check_apps ON)
+endif()
+add_custom_target(check-sdk
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tests/sdk_checks.py"
+        --prefix "${workspace_stage}" --cmake "${CMAKE_COMMAND}"
+        --ctest "${CMAKE_CTEST_COMMAND}" "--apps=${sdk_check_apps}"
+    DEPENDS ${sdk_check_dependencies} USES_TERMINAL VERBATIM)
 
 set(CWHIP_WEBSITE_API_HTML "" CACHE PATH "Optional existing Doxygen HTML directory containing index.html")
 add_custom_target(website
@@ -112,7 +120,6 @@ add_custom_target(website
         "--api-html=${CWHIP_WEBSITE_API_HTML}"
     USES_TERMINAL VERBATIM)
 
-include(CTest)
 if(BUILD_TESTING)
     include(cmake/Tests.cmake)
     set(test_all_dependencies cwhip workspace_terminal_test)

@@ -15,8 +15,8 @@ this repository owns the selected revisions and cross-repository workflow.
 | [`doc/WORKFLOW.md`](doc/WORKFLOW.md) | Setup, dependency stages, development, validation, and manual publication plan |
 | [`scripts/status.py`](scripts/status.py) | Read-only pinned/current component diagnostics |
 | [`tests/test_status.py`](tests/test_status.py) | Isolated status-script tests |
-| [`CMakeLists.txt`](CMakeLists.txt) | Isolated compiler bootstrap, external apps, opt-in website and CTest |
-| [`doc/BUILD.md`](doc/BUILD.md) | Build options, output layout, focused checks and current SDK limitations |
+| [`CMakeLists.txt`](CMakeLists.txt) | Compiler SDK build/install, standalone apps, opt-in website and CTest |
+| [`doc/BUILD.md`](doc/BUILD.md) | Build options, installed SDK boundary, checks and current limitations |
 
 ## Build
 
@@ -29,8 +29,9 @@ ctest --test-dir build --output-on-failure
 cmake --build build --target test-all
 ```
 
-The compiler builds first; GTK-enabled builds also produce the **external**
-editor and debugger. Executables are available in workspace-root `bin/`
+The compiler SDK builds/installs first; GTK-enabled builds configure the
+**standalone** editor and debugger through their own CMake projects against
+that installed prefix. Executables are available in workspace-root `bin/`
 through maintained links to the active build's private stage. Compiler-only
 builds, prerequisites and custom paths are described in [doc/BUILD.md](doc/BUILD.md).
 Website generation is explicit: `cmake --build build --target website`.
@@ -39,13 +40,18 @@ no build or test deploys anything, and `website/install.sh` must not be run.
 Use `cmake --build build --target clean` to clean all component products for
 that build, or `cmake --build build --clean-first` to clean and rebuild.
 The workspace currently requires the Unix Makefiles generator.
+The complete `build/stage` prefix is relocatable; root links alone are not a
+distribution. External projects consume the
+[installed compiler SDK](compiler/doc/CMAKE-SDK.md), not a compiler checkout.
+Run `cmake --build build --target check-sdk` for independent relocation and
+application build/test/clean/install acceptance.
 
 ## Workflow index
 
 - [Recursive clone and initialization; updating to pinned revisions](doc/WORKFLOW.md#clone-and-restore-pinned-revisions)
 - [Deliberate updates, branches, detached HEAD, and two-level commits](doc/WORKFLOW.md#develop-and-update-components-deliberately)
 - [Workspace build commands and options](doc/BUILD.md)
-- [Dependency stages and remaining standalone SDK work](doc/WORKFLOW.md#dependency-and-setup-plan)
+- [Dependency ownership and remaining release work](doc/WORKFLOW.md#dependency-and-setup-plan)
 - [Validation commands](doc/WORKFLOW.md#workspace-validation)
 - [Unresolved licensing](doc/WORKFLOW.md#licensing)
 

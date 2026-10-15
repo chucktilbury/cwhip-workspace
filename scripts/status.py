@@ -2,6 +2,7 @@
 """Report committed pins and local component state without changing anything."""
 
 from pathlib import Path
+import argparse
 import subprocess
 import sys
 
@@ -20,6 +21,10 @@ def git(root, *args):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--allow-dirty", action="store_true",
+                        help="Report local edits without failing; still require exact HEAD pins")
+    args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
     failed = False
     try:
@@ -41,7 +46,7 @@ def main():
                    "--ignore-submodules=none"):
                 states.append("DIRTY")
             print(f"{name}: pinned={pin} current={current} {' '.join(states) or 'OK'}")
-            failed |= bool(states)
+            failed |= "MISMATCH" in states or ("DIRTY" in states and not args.allow_dirty)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         detail = error.stderr.strip() if isinstance(error, subprocess.CalledProcessError) else str(error)
         print(f"status: {detail}", file=sys.stderr)
