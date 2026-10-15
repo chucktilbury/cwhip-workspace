@@ -1,0 +1,16 @@
+[submodule "compiler"]
+	path = compiler
+	url = https://github.com/chucktilbury/cwhip.git
+	branch = master
+[submodule "editor"]
+	path = editor
+	url = https://github.com/chucktilbury/cedit.git
+	branch = main
+[submodule "debugger"]
+	path = debugger
+	url = https://github.com/chucktilbury/cdbg.git
+	branch = main
+[submodule "website"]
+	path = website
+	url = https://github.com/chucktilbury/cwhip-website.git
+	branch = main

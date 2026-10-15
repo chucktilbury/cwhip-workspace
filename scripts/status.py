@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+"""Report committed pins and local component state without changing anything."""
+
+from pathlib import Path
+import subprocess
+import sys
+
+
+COMPONENTS = ("compiler", "editor", "debugger", "website")
+
+
+def git(root, *args):
+    return subprocess.run(
+        ["git", "-C", str(root), *args],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    ).stdout.strip()
+
+
+def main():
+    root = Path(__file__).resolve().parent.parent
+    failed = False
+    try:
+        for name in COMPONENTS:
+            entry = git(root, "ls-tree", "HEAD", "--", name).split()
+            if len(entry) != 4 or entry[:2] != ["160000", "commit"]:
+                raise ValueError(f"{name}: HEAD does not contain a component Git link")
+            pin = entry[2]
+            component = root / name
+            if not (component / ".git").exists():
+                print(f"{name}: pinned={pin} current=- UNINITIALIZED")
+                failed = True
+                continue
+            current = git(component, "rev-parse", "HEAD")
+            states = []
+            if current != pin:
+                states.append("MISMATCH")
+            if git(component, "status", "--porcelain", "--untracked-files=all",
+                   "--ignore-submodules=none"):
+                states.append("DIRTY")
+            print(f"{name}: pinned={pin} current={current} {' '.join(states) or 'OK'}")
+            failed |= bool(states)
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        detail = error.stderr.strip() if isinstance(error, subprocess.CalledProcessError) else str(error)
+        print(f"status: {detail}", file=sys.stderr)
+        return 1
+    return int(failed)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
