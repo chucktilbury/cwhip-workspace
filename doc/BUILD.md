@@ -13,8 +13,9 @@ ctest --test-dir build --output-on-failure
 
 Requirements: Linux/POSIX, CMake >= 3.24, a C11/C++17 toolchain, Clang on
 PATH, Python >= 3.11 (standard library only), SQLite 3 development files,
-and a single-config CMake generator. Unix Makefiles is verified; Ninja may
-also be selected when installed. No package downloads or system installs
+and the **Unix Makefiles** generator. Other generators, including Ninja, are
+rejected at configure time because recursive standard clean needs the
+Makefiles per-language clean-script include. No package downloads or system installs
 are performed. Use `-DCMAKE_BUILD_TYPE=Debug` for compiler/runtime debug
 symbols, or `Release` for optimization. The compiler's normal default is
 preserved when no build type is selected.
@@ -37,8 +38,10 @@ runtime and package changes; unchanged files/binaries retain their timestamps.
 `cmake --build build --parallel 4` is supported.
 
 No configure/build/test updates submodules, accesses component remote tips,
-runs an application GUI, deploys a website, or requires hosting credentials.
-CTest invokes `cdbg --help` only, without creating a window. GUI launch and
+uses the user's desktop, deploys a website, or requires hosting credentials.
+The focused root CTest invokes `cdbg --help` only, without creating a window;
+`test-all` also runs automated GUI checks on isolated Xvfb/DBus sessions.
+Manual GUI launch and
 interactive GDB debugging remain manual; using the debugger requires GDB,
 and its value inspector requires Python-enabled GDB with `gdb.MICommand`.
 
@@ -103,9 +106,10 @@ Build the desired configuration before running its CTests. A compiler-only
 build removes GUI links, and a compiler-only named target after switching builds
 does not publish unbuilt apps. Configure alone does not change links.
 Private `stage/bin/` binaries may remain after disabling an app but are not
-published. Deleting/cleaning the active build can leave dangling links; build
-again to restore them. Root links are intentionally not clean byproducts:
-cleaning an inactive configuration must not delete another build's links.
+published. Standard clean removes only links owned by the cleaned build,
+leaving another configuration's links untouched. Manually deleting an active
+binary directory without cleaning can leave dangling links; build again to
+restore them. Root links are ownership-aware, not unconditional clean byproducts.
 This is not an install or relocatable release layout.
 
 Intermediates, real executable files, copied resources and generated package
@@ -122,6 +126,7 @@ locks remain in the selected binary directory, here shown as `build/`:
 | `apps/cedit/`, `apps/cdbg/` | Copied external sources, private HOME/XDG directories, package manifest and lock; debugger `values.h` |
 | `tests/` | Focused test binaries, fixtures and isolated configuration |
 | `website/doc/website/site/` | Explicitly generated site |
+| `test-all/` | Full compiler Debug build/stage, external test input adapters, isolated test outputs |
 
 Application builds use the staged compiler's package discovery and
 `cwhip-pkg init` to lock the standard packages. Runtime/include/builtin/module
@@ -142,9 +147,56 @@ promised. App options changed in an existing directory may leave old binaries
 in the stage, but their named targets still fail when disabled. Use a new
 binary directory for a pristine output set.
 
-The compiler's integrated apps, website, install scripts and full test suites
-are not built/run by the workspace bootstrap. No component or compiler behavior
+The compiler's integrated apps, website and install scripts are not built/run
+by the default workspace bootstrap. Full compiler and external app suites are
+available through explicit `test-all`, described below. No component or compiler behavior
 is patched and no Git-link pins are changed.
+
+## Clean
+
+```sh
+cmake --build build --target clean
+cmake --build build
+# Or clean and rebuild in one invocation:
+cmake --build build --clean-first --parallel 4
+```
+
+This is CMake's **standard clean target**, not a replacement named target.
+It propagates to the nested compiler's native clean target, removing compiler
+objects and archives. It then removes this binary directory's entire private
+stage, generated app source copies/native headers/package locks/HOME/config,
+test outputs and logs, full `test-all/` trees, and generated website staging.
+Root native objects/executables are removed by CMake's own native clean rules.
+The source tree, pins, other binary directories and their published links
+are preserved. Repeated clean is harmless.
+
+Root and nested CMake caches/Makefiles, dependency metadata and configured
+input inventories are retained. An ordinary subsequent build reruns the
+nested compiler configure before building to recreate configured package
+tools and staged directories. App/test commands recreate their private
+directories. No manual configure step is required after clean.
+The website remains opt-in and must be regenerated explicitly.
+
+The propagation hook is configured from `cmake/CleanHook.cmake.in` into a
+dedicated non-default object's optional `cmake_clean_C.cmake` include, which
+the Unix Makefiles generator emits after its native target cleanup. It does
+not patch CMake's main generated clean scripts. This narrow generator-specific
+extension is why other generators are rejected rather than given incomplete
+clean semantics. Nested clean failures are fatal. Do not run clean concurrently
+with a build/test in that same directory, nor run different configurations'
+builds/tests concurrently while sharing root `bin/`.
+
+The explicit destructive-to-products regression exercises populated builds,
+website and tests, repeat clean, rebuild, clean-first and inactive ownership:
+
+```sh
+python3 tests/clean_checks.py --build build --active-build "build gui spaces"
+```
+
+Both arguments must already be configured; the second is optional and must
+refer to a different build directory. It finishes with the second build
+active and the first cleaned. These regressions are opt-in so ordinary CTest
+does not delete its own working products.
 
 ## Website generation and manual publication
 
@@ -184,6 +236,60 @@ Never run `website/install.sh` from this workflow: it uploads via SCP.
 There is no upload/deploy target.
 
 ## Validation
+
+### All supported suites
+
+```sh
+cmake -S . -B build
+cmake --build build --target test-all
+```
+
+`test-all` requires `BUILD_TESTING=ON`. It first builds the selected workspace
+compiler/apps and native test, then configures a separate **Debug** compiler
+test build/stage under `build/test-all/`. It builds compiler unit/functional,
+command-line and GC test executables and runs the compiler's registered CTest
+suite with `--output-on-failure`. This includes integration cases, callbacks,
+package CLI (remote operations mapped to local test repositories), developer
+setup, install-layout regressions in temporary private prefixes, examples,
+documentation programs and enabled GTK binding checks. It does not invoke
+`install.sh`, deploy, or install into system/user directories.
+
+The compiler CTest excludes `cedit_*`, `cdbg_*` and
+`cwhip_example_editor_*`: those exercise compiler-monorepo app duplicates,
+not the extracted apps. The target prints that exclusion and instead runs
+the external editor's build, binary/default-shortcut smoke, shortcuts,
+four preference groups and four
+project groups, plus compiler-owned project-explorer/dialog fixture drivers
+with **editor/src/cedit.cw** explicitly selected. It runs the external
+debugger's build, MI parser and local-GDB session runner with a private copy
+of **debugger/src** and its own test fixtures.
+
+The split app runners still assume some monorepo fixture paths. A private
+adapter copies their unchanged runners, supplies the compiler-owned native
+editor fixture files missing from the extracted repository, and arranges the
+debugger's required tools/tests/include layout under `test-all/external-inputs`.
+It never substitutes the compiler's app sources or modifies any submodule.
+Workspace CTests run as well, including status, publication, clean-helper
+unit tests and website Markdown/assets/manifest tests; the pinned website
+has no separate test runner.
+
+GTK test programs use ephemeral isolated Xvfb displays and DBus sessions,
+not the user's display. Missing optional Xvfb/DBus, disabled apps/bindings,
+or missing GDB produce visible suite exclusions; compiler/non-GUI and root
+focused tests still run. An installed but incompatible tool fails the
+relevant test. Fuzz/sanitizer/coverage instrumentation is not enabled by this
+target and is explicitly distinguished from the normal registered suites.
+HOME/XDG, temporary prefixes and test outputs are private to the binary tree.
+
+Compiler and external CTest invocations run serially (`--parallel 1`) to
+avoid fixture/display/build-resource conflicts; compiler test executable
+compilation uses bounded `--parallel 4`. The driver drops inherited Make
+jobserver flags before its own bounded builds, avoiding invalid jobserver
+descriptors. Suite failures are retained while remaining suites run, and
+`test-all` fails if any suite fails; it does not silently turn failures into
+success or download missing tools.
+
+### Focused checks
 
 The default seven CTest entries cover read-only component diagnostics, existing
 status unit tests plus website tests, native PTY transport, compiler compilation

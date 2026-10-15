@@ -26,6 +26,7 @@ After initializing the pinned submodules:
 cmake -S . -B build
 cmake --build build
 ctest --test-dir build --output-on-failure
+cmake --build build --target test-all
 ```
 
 The compiler builds first; GTK-enabled builds also produce the **external**
@@ -35,6 +36,9 @@ builds, prerequisites and custom paths are described in [doc/BUILD.md](doc/BUILD
 Website generation is explicit: `cmake --build build --target website`.
 Its output is `build/website/doc/website/site/`. **WEBSITE UPLOAD MANUAL**:
 no build or test deploys anything, and `website/install.sh` must not be run.
+Use `cmake --build build --target clean` to clean all component products for
+that build, or `cmake --build build --clean-first` to clean and rebuild.
+The workspace currently requires the Unix Makefiles generator.
 
 ## Workflow index
 

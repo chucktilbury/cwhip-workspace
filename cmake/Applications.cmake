@@ -29,6 +29,8 @@ foreach(app cedit cdbg)
         "${app_project}/inputs.txt")
     add_custom_command(
         OUTPUT "${app_project}/cwhip-pkg.toml" "${app_project}/cwhip-pkg.lock"
+        COMMAND "${CMAKE_COMMAND}" -E make_directory
+            "${app_project}/home" "${app_project}/xdg" "${app_project}/modules"
         COMMAND "${CMAKE_COMMAND}" -E rm -f
             "${app_project}/cwhip-pkg.toml" "${app_project}/cwhip-pkg.lock"
         COMMAND ${app_environment} "${Python3_EXECUTABLE}"

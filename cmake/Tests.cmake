@@ -5,6 +5,7 @@ add_test(NAME workspace_python
 set(test_work "${CMAKE_BINARY_DIR}/tests")
 file(MAKE_DIRECTORY "${test_work}")
 add_custom_command(OUTPUT "${test_work}/values.h"
+    COMMAND "${CMAKE_COMMAND}" -E make_directory "${test_work}"
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/debugger/src/embed_values.py"
         "${CMAKE_SOURCE_DIR}/debugger/src/values.py" "${test_work}/values.h"
     DEPENDS "${CMAKE_SOURCE_DIR}/debugger/src/embed_values.py"

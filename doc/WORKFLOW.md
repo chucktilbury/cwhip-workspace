@@ -177,6 +177,8 @@ From the workspace root:
 cmake -S . -B build
 cmake --build build
 ctest --test-dir build --output-on-failure
+# All supported compiler, external app and workspace suites:
+cmake --build build --target test-all
 python3 scripts/status.py
 python3 -m unittest discover -s tests -v
 git submodule status --recursive
@@ -192,6 +194,26 @@ replace component tests or check SDK/API compatibility. CTest also runs the
 diagnostic unit tests, website adapter tests, compilation smoke, native
 terminal test, MI parser, embedded inspector and no-op build checks.
 [BUILD.md](BUILD.md#validation) lists the opt-in timestamp/dependency probes.
+`test-all` includes headless isolated Xvfb/DBus app suites when dependencies
+are available and prints exclusions for missing optional tools. It uses the
+external app sources, not the compiler's duplicate apps.
+
+The standard clean command now propagates through all generated component
+products for that build:
+
+```sh
+cmake --build build --target clean
+cmake --build build
+# Equivalent clean-before-rebuild:
+cmake --build build --clean-first
+```
+
+Nested compiler objects, the private SDK stage, app/test outputs, full-suite
+trees and website staging are cleaned. Configure state remains for rebuilding.
+Only root `bin/` links owned by this binary directory are removed; cleaning an
+inactive configuration preserves active links and other build directories.
+Recursive clean currently requires Unix Makefiles; unsupported generators
+are rejected at configure time. See [BUILD.md](BUILD.md#clean).
 
 For independent clone validation, clone this repository into a fresh directory
 with `--recurse-submodules`, compare `git ls-tree HEAD` and

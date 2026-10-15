@@ -1,0 +1,13 @@
+execute_process(
+    COMMAND "@CMAKE_COMMAND@" --build "@compiler_build@" --target clean
+    RESULT_VARIABLE result)
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "Nested compiler clean failed (${result})")
+endif()
+execute_process(
+    COMMAND "@Python3_EXECUTABLE@" "@CMAKE_SOURCE_DIR@/scripts/clean_build.py"
+        --build "@CMAKE_BINARY_DIR@" --public-bin "@workspace_public_bin@"
+    RESULT_VARIABLE result)
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "Workspace generated-product cleanup failed (${result})")
+endif()

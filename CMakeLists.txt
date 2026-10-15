@@ -1,12 +1,11 @@
 cmake_minimum_required(VERSION 3.24)
+if(NOT CMAKE_GENERATOR STREQUAL "Unix Makefiles")
+    message(FATAL_ERROR "This bootstrap requires Unix Makefiles for recursive standard clean support. Use -G \"Unix Makefiles\" and a separate build directory per configuration.")
+endif()
 project(cwhip_workspace LANGUAGES C CXX)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
     message(FATAL_ERROR "Use an out-of-source build: cmake -S . -B build")
-endif()
-get_property(multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-if(multi_config)
-    message(FATAL_ERROR "This bootstrap requires a single-config generator (Unix Makefiles or Ninja). Use a separate build directory per configuration.")
 endif()
 foreach(component compiler editor debugger website)
     file(REAL_PATH "${CMAKE_SOURCE_DIR}/${component}" component_source)
@@ -64,8 +63,7 @@ file(GLOB_RECURSE compiler_cmake CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/compiler/*.cmake"
     "${CMAKE_SOURCE_DIR}/compiler/*/CMakeLists.txt")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${compiler_cmake})
-execute_process(
-    COMMAND "${CMAKE_COMMAND}" -S "${CMAKE_SOURCE_DIR}/compiler" -B "${compiler_build}"
+set(compiler_configure "${CMAKE_COMMAND}" -S "${CMAKE_SOURCE_DIR}/compiler" -B "${compiler_build}"
         -G "${CMAKE_GENERATOR}"
         "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
         "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
@@ -77,8 +75,8 @@ execute_process(
         -DCMAKE_INSTALL_BINDIR=bin -DCMAKE_INSTALL_LIBDIR=lib
         -DCMAKE_INSTALL_INCLUDEDIR=include -DCMAKE_INSTALL_DATADIR=share
         "-DCWHIP_GTK=${CWHIP_GTK}" "-DCWHIP_GTK_SOURCEVIEW=${CWHIP_GTK_SOURCEVIEW}"
-        -DBUILD_TESTING=OFF
-    COMMAND_ERROR_IS_FATAL ANY)
+        -DBUILD_TESTING=OFF)
+execute_process(COMMAND ${compiler_configure} COMMAND_ERROR_IS_FATAL ANY)
 load_cache("${compiler_build}" READ_WITH_PREFIX compiler_ CWHIP_CLANG_EXECUTABLE)
 set(compiler_outputs "${workspace_compiler}" "${runtime_archive}" "${sqlite_archive}"
     "${resource_stamp}")
@@ -86,6 +84,7 @@ if(CWHIP_GTK)
     list(APPEND compiler_outputs "${gtk_archive}")
 endif()
 add_custom_target(cwhip ALL
+    COMMAND ${compiler_configure}
     COMMAND "${CMAKE_COMMAND}" --build "${compiler_build}" --config "$<CONFIG>" --target cwhip
     COMMAND ${workspace_publish} --names cwhip cwhip-pkg
     BYPRODUCTS ${compiler_outputs}
@@ -116,5 +115,27 @@ add_custom_target(website
 include(CTest)
 if(BUILD_TESTING)
     include(cmake/Tests.cmake)
+    set(test_all_dependencies cwhip workspace_terminal_test)
+    if(CWHIP_GTK_SOURCEVIEW AND CWHIP_BUILD_CEDIT)
+        list(APPEND test_all_dependencies cedit)
+    endif()
+    if(CWHIP_GTK_SOURCEVIEW AND CWHIP_BUILD_CDBG)
+        list(APPEND test_all_dependencies cdbg)
+    endif()
+    add_custom_target(test-all
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/scripts/test_all.py"
+            --source "${CMAKE_SOURCE_DIR}" --build "${CMAKE_BINARY_DIR}"
+            --cmake "${CMAKE_COMMAND}" --ctest "${CMAKE_CTEST_COMMAND}"
+            --cc "${CMAKE_C_COMPILER}" --cxx "${CMAKE_CXX_COMPILER}"
+            --clang "${compiler_CWHIP_CLANG_EXECUTABLE}"
+            "--gtk=${CWHIP_GTK}" "--sourceview=${CWHIP_GTK_SOURCEVIEW}"
+            "--editor=${CWHIP_BUILD_CEDIT}" "--debugger=${CWHIP_BUILD_CDBG}"
+        DEPENDS ${test_all_dependencies}
+        USES_TERMINAL VERBATIM)
+else()
+    add_custom_target(test-all
+        COMMAND "${CMAKE_COMMAND}" -E echo "test-all requires configuring with BUILD_TESTING=ON"
+        COMMAND "${CMAKE_COMMAND}" -E false VERBATIM)
 endif()
+include(cmake/Clean.cmake)
 message(STATUS "Workspace executables: ${workspace_public_bin} (private stage: ${workspace_stage}); website is opt-in")
