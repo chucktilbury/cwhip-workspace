@@ -74,7 +74,13 @@ foreach(app cedit cdbg)
         WORKING_DIRECTORY "${app_project}"
         COMMENT "Building external ${app}"
         VERBATIM)
-    add_custom_target(${app} ALL DEPENDS "${app_output}")
+    set(app_public_names ${app})
+    if(app STREQUAL "cedit")
+        list(APPEND app_public_names cedit.bin)
+    endif()
+    add_custom_target(${app} ALL
+        COMMAND ${workspace_publish} --names ${app_public_names}
+        DEPENDS "${app_output}" VERBATIM)
     if(app STREQUAL "cedit")
         add_dependencies(cedit cedit_launcher)
     endif()

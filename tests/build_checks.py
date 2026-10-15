@@ -8,6 +8,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 
 
@@ -42,7 +43,11 @@ def outputs(build):
             paths.append(path)
     paths.extend((build / "apps").glob("*/cwhip-pkg.*"))
     paths.extend(stage.glob("share/cwhip/modules/*/*/lib/*.a"))
-    return {path: path.stat().st_mtime_ns for path in paths}
+    result = {path: path.stat().st_mtime_ns for path in paths}
+    for path in (ROOT / "bin").iterdir():
+        if path.is_symlink():
+            result[path] = (path.lstat().st_mtime_ns, str(path.readlink()))
+    return result
 
 
 def constants():
@@ -63,7 +68,7 @@ def main():
     build = args.build.resolve()
     work = build / "tests" / args.mode
     work.mkdir(parents=True, exist_ok=True)
-    compiler = build / "stage/bin/cwhip"
+    compiler = ROOT / "bin/cwhip"
     env = environment(work)
     command = [args.cmake, "--build", build]
     if args.mode == "noop":
@@ -95,6 +100,8 @@ def main():
                 source.touch()
                 run(command, work)
                 assert output.stat().st_mtime_ns > before, f"{source} did not rebuild {name}"
+                assert (ROOT / "bin" / name).resolve() == output.resolve()
+                assert (ROOT / "bin" / name).stat().st_mtime_ns == output.stat().st_mtime_ns
             finally:
                 os.utime(source, ns=(original.st_atime_ns, original.st_mtime_ns))
             print(f"Dependency rebuilt {name}: {source}")
@@ -103,13 +110,30 @@ def main():
         run(command, work)
         assert before == outputs(build), "Dependency probes did not settle to a no-op"
     elif args.mode == "smoke":
+        assert compiler.readlink() == build / "stage/bin/cwhip"
+        package_tool = ROOT / "bin/cwhip-pkg"
+        with tempfile.TemporaryDirectory(dir=work, prefix="package-") as package:
+            run([sys.executable, package_tool, "init", package], work, env)
         source = work / "hello.cw"
         source.write_text('start { print("workspace-smoke") }\n')
         binary = work / "hello"
         run([compiler, source, "-o", binary], work, env)
         result = run([binary], work, env)
         assert result.stdout == "workspace-smoke" and not result.stderr, result
-        cdbg = build / "stage/bin/cdbg"
+        cdbg = ROOT / "bin/cdbg"
+        launcher = ROOT / "bin/cedit"
+        if launcher.exists():
+            assert launcher.resolve().parent == (ROOT / "bin/cedit.bin").resolve().parent
+            # Exercise the actual published launcher bytes with a harmless
+            # sibling, not an application GUI.
+            with tempfile.TemporaryDirectory(dir=work, prefix="launcher-") as directory:
+                launcher_work = Path(directory)
+                shutil.copy2(launcher, launcher_work / "cedit")
+                sibling = launcher_work / "cedit.bin"
+                sibling.write_text("#!/bin/sh\nprintf 'launcher-sibling-ok'\n")
+                sibling.chmod(0o755)
+                result = run([launcher_work / "cedit", "--foreground"], work, env)
+                assert result.stdout == "launcher-sibling-ok", result
         if cdbg.exists():
             result = run([cdbg, "--help"], work, env)
             assert "Usage: cdbg" in result.stdout and not result.stderr, result

@@ -82,8 +82,34 @@ other custom binary directories should be outside the source tree.
 
 ## Outputs and SDK limitations
 
-All build products, copied resources and generated package locks live under
-the selected binary directory, here shown as `build/`:
+User-facing executables are available in **workspace-root `bin/`**:
+`bin/cwhip`, `bin/cwhip-pkg`, `bin/cedit`, `bin/cedit.bin`, and `bin/cdbg`.
+These are maintained absolute symlinks to the selected build's real executables.
+The compiler resolves its real executable location and `cwhip-pkg` resolves
+its script path, preserving private SDK discovery without environment wrappers.
+The editor launcher resolves its real location and finds its `cedit.bin` sibling.
+
+Each named build target republishes its executable links even on an otherwise
+no-op build, repairing missing links without rewriting correct links. Rebuilt
+binaries are immediately visible through the links; no stale executable copies
+are kept. The compiler target switches compiler/package links and removes app
+links from other builds or apps disabled in this configuration; successful app
+targets then publish their own links. Non-symlink files with these names are
+rejected rather than overwritten.
+
+**Root `bin/` is shared: the last build selects the active configuration.**
+Do not build or test different binary directories concurrently in one workspace.
+Build the desired configuration before running its CTests. A compiler-only
+build removes GUI links, and a compiler-only named target after switching builds
+does not publish unbuilt apps. Configure alone does not change links.
+Private `stage/bin/` binaries may remain after disabling an app but are not
+published. Deleting/cleaning the active build can leave dangling links; build
+again to restore them. Root links are intentionally not clean byproducts:
+cleaning an inactive configuration must not delete another build's links.
+This is not an install or relocatable release layout.
+
+Intermediates, real executable files, copied resources and generated package
+locks remain in the selected binary directory, here shown as `build/`:
 
 | Path | Contents |
 | --- | --- |
@@ -161,7 +187,9 @@ There is no upload/deploy target.
 
 The default seven CTest entries cover read-only component diagnostics, existing
 status unit tests plus website tests, native PTY transport, compiler compilation
-and execution, `cdbg --help`, exact embedded inspector bytes, real GDB value
+and execution through root `bin/cwhip`, root package-tool discovery,
+launcher sibling resolution with a harmless test companion, `bin/cdbg --help`,
+publication switching/repair/no-op behavior, exact embedded inspector bytes, real GDB value
 inspection, unchanged second-build timestamps and the external debugger's MI
 parser checks. GDB absence is explicitly reported as a skipped inspector check;
 an installed GDB without the required Python API fails that check.

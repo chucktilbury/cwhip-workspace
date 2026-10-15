@@ -29,7 +29,8 @@ ctest --test-dir build --output-on-failure
 ```
 
 The compiler builds first; GTK-enabled builds also produce the **external**
-editor and debugger. Executables are in `build/stage/bin/`. Compiler-only
+editor and debugger. Executables are available in workspace-root `bin/`
+through maintained links to the active build's private stage. Compiler-only
 builds, prerequisites and custom paths are described in [doc/BUILD.md](doc/BUILD.md).
 Website generation is explicit: `cmake --build build --target website`.
 Its output is `build/website/doc/website/site/`. **WEBSITE UPLOAD MANUAL**:

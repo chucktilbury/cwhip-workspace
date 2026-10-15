@@ -39,6 +39,17 @@ option(CWHIP_BUILD_CDBG "Include the external debugger in the default build" ON)
 set(workspace_stage "${CMAKE_BINARY_DIR}/stage")
 set(compiler_build "${CMAKE_BINARY_DIR}/compiler-build")
 set(workspace_bin "${workspace_stage}/bin")
+set(workspace_public_bin "${CMAKE_SOURCE_DIR}/bin")
+set(workspace_enabled_bins cwhip cwhip-pkg)
+if(CWHIP_GTK_SOURCEVIEW AND CWHIP_BUILD_CEDIT)
+    list(APPEND workspace_enabled_bins cedit cedit.bin)
+endif()
+if(CWHIP_GTK_SOURCEVIEW AND CWHIP_BUILD_CDBG)
+    list(APPEND workspace_enabled_bins cdbg)
+endif()
+set(workspace_publish "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/scripts/publish_bin.py"
+    --stage "${workspace_stage}" --output "${workspace_public_bin}"
+    --enabled ${workspace_enabled_bins})
 set(workspace_modules "${workspace_stage}/share/cwhip/modules")
 set(workspace_compiler "${workspace_bin}/cwhip")
 set(runtime_archive "${workspace_stage}/lib/cwhip/libcwhip_runtime.a")
@@ -76,6 +87,7 @@ if(CWHIP_GTK)
 endif()
 add_custom_target(cwhip ALL
     COMMAND "${CMAKE_COMMAND}" --build "${compiler_build}" --config "$<CONFIG>" --target cwhip
+    COMMAND ${workspace_publish} --names cwhip cwhip-pkg
     BYPRODUCTS ${compiler_outputs}
     USES_TERMINAL VERBATIM)
 
@@ -105,4 +117,4 @@ include(CTest)
 if(BUILD_TESTING)
     include(cmake/Tests.cmake)
 endif()
-message(STATUS "Workspace outputs: ${workspace_bin}; website is opt-in (never uploaded)")
+message(STATUS "Workspace executables: ${workspace_public_bin} (private stage: ${workspace_stage}); website is opt-in")

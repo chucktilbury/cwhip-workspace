@@ -105,7 +105,9 @@ documented there; this workspace does not install system packages.
 
 Use [BUILD.md](BUILD.md) for the verified umbrella bootstrap, which configures
 the pinned compiler in `build/compiler-build` with `build/stage` as its private
-resource prefix. It does not run the compiler's install script. A supported,
+resource prefix. User-facing executables are published as maintained links in
+workspace-root `bin/`; the last build selects the active private stage.
+It does not run the compiler's install script. A supported,
 versioned SDK for external applications remains work in
 [chucktilbury/cwhip#1](https://github.com/chucktilbury/cwhip/issues/1).
 Acceptance includes a clean install prefix with no source-tree assumptions
