@@ -15,12 +15,32 @@ this repository owns the selected revisions and cross-repository workflow.
 | [`doc/WORKFLOW.md`](doc/WORKFLOW.md) | Setup, dependency stages, development, validation, and manual publication plan |
 | [`scripts/status.py`](scripts/status.py) | Read-only pinned/current component diagnostics |
 | [`tests/test_status.py`](tests/test_status.py) | Isolated status-script tests |
+| [`CMakeLists.txt`](CMakeLists.txt) | Isolated compiler bootstrap, external apps, opt-in website and CTest |
+| [`doc/BUILD.md`](doc/BUILD.md) | Build options, output layout, focused checks and current SDK limitations |
+
+## Build
+
+After initializing the pinned submodules:
+
+```sh
+cmake -S . -B build
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+The compiler builds first; GTK-enabled builds also produce the **external**
+editor and debugger. Executables are in `build/stage/bin/`. Compiler-only
+builds, prerequisites and custom paths are described in [doc/BUILD.md](doc/BUILD.md).
+Website generation is explicit: `cmake --build build --target website`.
+Its output is `build/website/doc/website/site/`. **WEBSITE UPLOAD MANUAL**:
+no build or test deploys anything, and `website/install.sh` must not be run.
 
 ## Workflow index
 
 - [Recursive clone and initialization; updating to pinned revisions](doc/WORKFLOW.md#clone-and-restore-pinned-revisions)
 - [Deliberate updates, branches, detached HEAD, and two-level commits](doc/WORKFLOW.md#develop-and-update-components-deliberately)
-- [Setup and dependency plan; incomplete standalone builds and website setup](doc/WORKFLOW.md#dependency-and-setup-plan)
+- [Workspace build commands and options](doc/BUILD.md)
+- [Dependency stages and remaining standalone SDK work](doc/WORKFLOW.md#dependency-and-setup-plan)
 - [Validation commands](doc/WORKFLOW.md#workspace-validation)
 - [Unresolved licensing](doc/WORKFLOW.md#licensing)
 

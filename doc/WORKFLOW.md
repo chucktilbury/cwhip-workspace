@@ -2,12 +2,15 @@
 
 This umbrella records a tested selection of component revisions, not copies of
 their source. The Git links in each workspace commit are the source of truth.
-There is no unified build, install, release, or upload command here.
+The [top-level CMake build](BUILD.md) bootstraps the compiler and external apps
+with a private binary-tree stage. There is no unified install, release, or
+upload command here.
 
 ## Clone and restore pinned revisions
 
-Git is required for the workspace. Python 3 is required only for the optional
-status helper and its tests. Clone all component repositories with:
+Git is required for the workspace. Python 3.11 or newer is required for builds
+and tests; Python 3 also runs the optional status helper. Clone all component
+repositories with:
 
 ```sh
 git clone --recurse-submodules https://github.com/chucktilbury/cwhip-workspace.git
@@ -100,9 +103,10 @@ They require CMake, a C11/C++17 toolchain, Clang on PATH, POSIX facilities, and
 Python 3.11 or newer for package tooling. Optional GUI dependencies are
 documented there; this workspace does not install system packages.
 
-Use the component's own build/test instructions from `compiler/`; no component
-build has been verified by this umbrella seed. A supported, versioned SDK for
-external applications remains work in
+Use [BUILD.md](BUILD.md) for the verified umbrella bootstrap, which configures
+the pinned compiler in `build/compiler-build` with `build/stage` as its private
+resource prefix. It does not run the compiler's install script. A supported,
+versioned SDK for external applications remains work in
 [chucktilbury/cwhip#1](https://github.com/chucktilbury/cwhip/issues/1).
 Acceptance includes a clean install prefix with no source-tree assumptions
 and documented compatible versions. Do not treat today's integrated application
@@ -118,12 +122,15 @@ explicit compiler compatibility policy:
 - [chucktilbury/cdbg#1](https://github.com/chucktilbury/cdbg/issues/1)
 
 The pinned external application repositories have **no standalone build
-scripts**. Their current
+scripts of their own**. Their current
 [`editor/README.md`](../editor/README.md) and
 [`debugger/README.md`](../debugger/README.md) refer to the compiler's integrated
 prototype workflows. Those build the copies still in the compiler repository,
-not these external submodules. Do not substitute them silently for testing
-external changes. GTK 4 and GtkSourceView are application dependencies; `cdbg`
+not these external submodules. The umbrella instead reuses that build logic
+with `editor/src` and `debugger/src`, including the launcher, terminal native
+helper and embedded inspector. This is temporary in-tree SDK coupling, not
+completion of standalone SDK or release packaging. GTK 4 >= 4.10 and
+GtkSourceView 5 are application dependencies; `cdbg`
 also needs GDB, and its value inspector needs Python-enabled GDB with
 `gdb.MICommand`. Compiling `.cw` debugger targets needs Cwhip.
 
@@ -140,12 +147,15 @@ requirements, links, and resulting artifacts reproducible:
 
 The pinned `website/build.py` expects to run from the site directory and looks
 for documentation Markdown in its **parent** plus `content/`. The umbrella
-layout does not satisfy the old parent-directory assumption. Existing `site/`
-files or the Doxygen archive are not evidence of a complete fresh build.
-Input staging, API generation, dependency setup, and cross-repository link
-validation remain unresolved. The earlier website setup attempt is blocked
-by tool approval; this seed neither retries those denied operations nor
-claims the website build is ready. No website build or upload is performed.
+layout does not satisfy the old parent-directory assumption directly. The
+workspace's explicit `website` target now stages `compiler/doc/*.md` and
+`website/content/` under the binary directory before running the pinned
+generator. It generates fresh real Markdown pages, CSS, JavaScript and the
+manifest-driven docs index; it does not copy a prebuilt site. The pinned
+Doxygen ZIP contains no HTML. By default the target diagnoses this and omits
+the API index link; an existing HTML reference may be supplied explicitly
+with `CWHIP_WEBSITE_API_HTML`. Fresh API generation and comprehensive
+cross-repository link validation remain future work. See [BUILD.md](BUILD.md).
 
 ### 4. MANUAL publication
 
@@ -162,6 +172,9 @@ The publication handoff and review procedure remain part of
 From the workspace root:
 
 ```sh
+cmake -S . -B build
+cmake --build build
+ctest --test-dir build --output-on-failure
 python3 scripts/status.py
 python3 -m unittest discover -s tests -v
 git submodule status --recursive
@@ -173,7 +186,10 @@ component. It exits nonzero for an uninitialized, dirty (including untracked
 files), or mismatched component, or a Git error. It performs no fetch,
 initialization, build, or upload. Pins come from workspace `HEAD`, so a staged
 Git-link update still reports a mismatch until it is committed. It does not
-replace component tests or check SDK/API compatibility.
+replace component tests or check SDK/API compatibility. CTest also runs the
+diagnostic unit tests, website adapter tests, compilation smoke, native
+terminal test, MI parser, embedded inspector and no-op build checks.
+[BUILD.md](BUILD.md#validation) lists the opt-in timestamp/dependency probes.
 
 For independent clone validation, clone this repository into a fresh directory
 with `--recurse-submodules`, compare `git ls-tree HEAD` and
