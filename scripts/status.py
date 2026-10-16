@@ -27,6 +27,8 @@ def main():
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
     failed = False
+    mismatched = []
+    uninitialized = []
     try:
         for name in COMPONENTS:
             entry = git(root, "ls-tree", "HEAD", "--", name).split()
@@ -36,12 +38,14 @@ def main():
             component = root / name
             if not (component / ".git").exists():
                 print(f"{name}: pinned={pin} current=- UNINITIALIZED")
+                uninitialized.append(name)
                 failed = True
                 continue
             current = git(component, "rev-parse", "HEAD")
             states = []
             if current != pin:
                 states.append("MISMATCH")
+                mismatched.append(name)
             if git(component, "status", "--porcelain", "--untracked-files=all",
                    "--ignore-submodules=none"):
                 states.append("DIRTY")
@@ -51,6 +55,20 @@ def main():
         detail = error.stderr.strip() if isinstance(error, subprocess.CalledProcessError) else str(error)
         print(f"status: {detail}", file=sys.stderr)
         return 1
+    if mismatched:
+        names = " ".join(mismatched)
+        print(f"\nPin MISMATCH: {names}. Pins are read from workspace HEAD, not the index.")
+        print("If these commits are intended, first ensure the component commits are pushed "
+              "to their remotes. Then, from the workspace root, review and record the pins:")
+        print(f"  git add {names}")
+        print("  git diff --cached --submodule=log")
+        print('  git commit -m "Update component pins"')
+        print("  git push")
+        print("Otherwise, preserve any local component work, then restore the committed pins:")
+        print(f"  git submodule update --init --checkout {names}")
+    if uninitialized:
+        print("\nInitialize the committed component pins from the workspace root:")
+        print(f"  git submodule update --init --checkout {' '.join(uninitialized)}")
     return int(failed)
 
 

@@ -65,6 +65,8 @@ class StatusTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn(f"editor: pinned={self.pin} current=- UNINITIALIZED", result.stdout)
         self.assertIn("website:", result.stdout)
+        self.assertIn("git submodule update --init --checkout editor", result.stdout)
+        self.assertNotIn("git add", result.stdout)
         self.assertEqual(self.run_status("--allow-dirty").returncode, 1)
 
     def test_tracked_dirty_component(self):
@@ -75,6 +77,7 @@ class StatusTests(unittest.TestCase):
         allowed = self.run_status("--allow-dirty")
         self.assertEqual(allowed.returncode, 0, allowed.stderr)
         self.assertIn("DIRTY", allowed.stdout)
+        self.assertNotIn("git add", allowed.stdout)
 
     def test_untracked_dirty_component(self):
         (self.root / "debugger" / "new.txt").write_text("untracked\n")
@@ -93,7 +96,26 @@ class StatusTests(unittest.TestCase):
         result = self.run_status()
         self.assertEqual(result.returncode, 1)
         self.assertIn(f"compiler: pinned={self.pin} current={current} MISMATCH", result.stdout)
+        self.assertIn("Pins are read from workspace HEAD, not the index", result.stdout)
+        self.assertIn("component commits are pushed to their remotes", result.stdout)
+        self.assertIn("git add compiler\n", result.stdout)
+        self.assertIn('git commit -m "Update component pins"', result.stdout)
+        self.assertIn("git push", result.stdout)
+        self.assertIn("git submodule update --init --checkout compiler", result.stdout)
         self.assertEqual(self.run_status("--allow-dirty").returncode, 1)
+
+    def test_hint_lists_only_mismatched_components(self):
+        for name in ("editor", "debugger"):
+            self.git(self.root / name, "-c", "user.name=Workspace Test",
+                     "-c", "user.email=workspace-test@example.invalid",
+                     "-c", "commit.gpgsign=false",
+                     "commit", "--allow-empty", "-qm", "New revision")
+        result = self.run_status("--allow-dirty")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("Pin MISMATCH: editor debugger.", result.stdout)
+        self.assertIn("git add editor debugger\n", result.stdout)
+        self.assertIn("git submodule update --init --checkout editor debugger", result.stdout)
+        self.assertEqual(self.git(self.root, "diff", "--cached", "--name-only"), "")
 
     def test_git_error_is_reported(self):
         (self.root / "editor" / ".git").write_text("gitdir: missing\n")

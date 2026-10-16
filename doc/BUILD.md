@@ -339,6 +339,10 @@ success or download missing tools.
 
 ### Focused checks
 
+If `workspace_diagnostics` reports `MISMATCH`, see
+[Troubleshooting: pin MISMATCH](WORKFLOW.md#troubleshooting-pin-mismatch)
+for recording intended component revisions or restoring the committed pins.
+
 The default six CTest entries cover read-only component diagnostics, existing
 status unit tests plus website tests, native PTY transport, compiler compilation
 and execution through root `bin/cwhip`, root package-tool discovery,

@@ -86,6 +86,36 @@ the change. Review dependency compatibility before advancing pins. Detached
 HEAD is suitable for selecting a pin; create a branch before new development
 so commits are not left reachable only through the local reflog.
 
+### Troubleshooting: pin MISMATCH
+
+`workspace_diagnostics` compares each component checkout with the Git link in
+the workspace's committed `HEAD`. `MISMATCH` after intentionally updating a
+component is not a compiler/test failure: the workspace still records its old
+revision. Staging the Git link alone does not resolve this check.
+
+If the new commits are intended, first ensure they are pushed to their
+component remotes so collaborators can fetch them. From the workspace root,
+record only the mismatched components (replace `editor debugger` below with
+the names reported by the diagnostic):
+
+```sh
+git add editor debugger
+git diff --cached --submodule=log
+git commit -m "Update component pins"
+git push
+```
+
+Otherwise, preserve any local component work, then restore the committed pins:
+
+```sh
+git submodule update --init --checkout editor debugger
+```
+
+The same update command initializes components reported as `UNINITIALIZED`.
+Rerun `ctest --test-dir build --output-on-failure -R '^workspace_diagnostics$'`
+after resolving the pins. `--allow-dirty` permits local file edits, not pin
+mismatches or uninitialized components; diagnostics never change checkouts.
+
 ## Dependency and setup plan
 
 Track work in the
