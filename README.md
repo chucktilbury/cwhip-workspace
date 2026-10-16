@@ -4,6 +4,11 @@ Pinned development umbrella for the Cwhip compiler, editor, debugger, and
 website. Component source and history remain owned by their repositories;
 this repository owns the selected revisions and cross-repository workflow.
 
+**New to Cwhip?** Follow [From no installation to a first program](doc/FIRST-PROGRAM.md)
+to build and install into a user-local prefix, launch cedit, edit hello world,
+and compile/run it from the terminal. This is a source-install workflow,
+not a promise of available Debian binary packages.
+
 ## Directory index
 
 | Path | Owner / contents |
@@ -17,6 +22,7 @@ this repository owns the selected revisions and cross-repository workflow.
 | [`tests/test_status.py`](tests/test_status.py) | Isolated status-script tests |
 | [`CMakeLists.txt`](CMakeLists.txt) | Compiler SDK build/install, standalone apps, opt-in website and CTest |
 | [`doc/BUILD.md`](doc/BUILD.md) | Build options, installed SDK boundary, checks and current limitations |
+| [`examples/hello-world/`](examples/hello-world/) | Minimal first program and installed-SDK CMake project |
 
 ## Build
 

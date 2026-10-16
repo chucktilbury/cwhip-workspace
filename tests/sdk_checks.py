@@ -84,6 +84,22 @@ def main():
         paths = run(relocated / "bin/cwhip", "--print-paths").stdout
         assert str(relocated) in paths and str(ROOT) not in paths, paths
         assert "executable-relative" in paths, paths
+        # Exercise the beginner's actual tracked example through both interfaces.
+        beginner = work / "first program"
+        shutil.copytree(ROOT / "examples/hello-world", beginner)
+        run(relocated / "bin/cwhip", beginner / "hello.cw", "-o", beginner / "hello")
+        assert run(beginner / "hello").stdout == "Hello, world!\n"
+        beginner_build = beginner / "build"
+        run(args.cmake, "-S", beginner, "-B", beginner_build, "-G", "Unix Makefiles",
+            f"-DCMAKE_PREFIX_PATH={relocated}")
+        run(args.cmake, "--build", beginner_build, "--parallel", "4")
+        assert run(beginner_build / "bin/hello").stdout == "Hello, world!\n"
+        source = beginner / "hello.cw"
+        source.write_text(source.read_text().replace("Hello, world!", "Hello from Cwhip!"))
+        run(relocated / "bin/cwhip", source, "-o", beginner / "hello")
+        assert run(beginner / "hello").stdout == "Hello from Cwhip!\n"
+        run(args.cmake, "--build", beginner_build, "--parallel", "4")
+        assert run(beginner_build / "bin/hello").stdout == "Hello from Cwhip!\n"
         project = work / "external project"
         project.mkdir()
         (project / "CMakeLists.txt").write_text(PROJECT)

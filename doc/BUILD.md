@@ -1,5 +1,9 @@
 # Workspace CMake build
 
+For a beginner walkthrough including prerequisites, a persistent user-local
+installation, launching cedit, editing and running hello world, start with
+[Your first program](FIRST-PROGRAM.md).
+
 ## Prerequisites and default build
 
 Initialize the selected revisions explicitly before configuring:
@@ -14,14 +18,12 @@ ctest --test-dir build --output-on-failure
 The selected editor and debugger revisions must each contain their standalone
 root `CMakeLists.txt`. Configuration fails immediately with the exact missing
 path if either interface is absent, even in compiler-only configurations.
-A workspace commit does not include uncommitted changes inside submodules:
-an older pin cannot acquire the new interface merely by reinitializing it.
-Until the component changes are committed/tagged and the workspace pins updated,
-use the isolated checkout containing those changes. Do not implicitly copy
-uncommitted component files from another worktree. Delivery requires the component
-changes to be committed and made available first, followed by a workspace
-Git-link update selecting those revisions; only then can an ordinary recursive
-clone reproduce this build. `test-all` also preflights both interfaces before
+A workspace commit does not include uncommitted changes inside submodules.
+The selected pins contain these interfaces and can be initialized normally;
+no private patches or another worktree's files are required. An older pin
+cannot acquire a new interface merely by reinitializing it: use the selected
+workspace revisions, not copied uncommitted component files.
+`test-all` also preflights both interfaces before
 creating its private outputs or building compiler suites, protecting existing
 build directories if a component checkout changes after configuration.
 
@@ -388,8 +390,10 @@ edit component content; do not run it concurrently with another build in the
 same directory. CTest itself does not touch component timestamps.
 
 `check-sdk` explicitly exercises the installed contract: copy and rename the
-whole prefix into a temporary external path containing spaces, compile/run an
-external CMake hello using standard modules, inline C and a public-header
+whole prefix into a temporary external path containing spaces, compile/run the
+tracked `examples/hello-world` through both CLI and CMake, edit its greeting
+and verify both rebuilds, then compile/run an external CMake program using
+standard modules, inline C and a public-header
 native object, reject missing runtime and wrong version, and test clean/
 rebuild/install. With both apps enabled it copies each standalone project
 outside the umbrella, configures it only against that relocated SDK, runs its

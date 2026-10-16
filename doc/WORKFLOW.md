@@ -4,8 +4,9 @@ This umbrella records a tested selection of component revisions, not copies of
 their source. The Git links in each workspace commit are the source of truth.
 The [top-level CMake build](BUILD.md) builds/installs the compiler SDK, then
 configures standalone applications against that private installed prefix.
-There is no unified public release or
-upload command here.
+There is no unified public release or upload command here.
+For installing and using Cwhip rather than developing the components, follow
+[the first-program source-install guide](FIRST-PROGRAM.md).
 
 ## Clone and restore pinned revisions
 
@@ -30,17 +31,14 @@ component branch tips. Inspect and commit or otherwise preserve local work
 before changing revisions; do not use force to discard component changes.
 Ordinary builds must not run `git submodule update --remote`.
 
-The initial selection is:
+Inspect the current committed pins and initialized checkouts directly:
 
-| Path | Repository branch for deliberate updates | Pinned commit |
-| --- | --- | --- |
-| `compiler` | `chucktilbury/cwhip`, `master` | `5a229c632a1bddd01891c0ef0776f37e34ab8290` |
-| `editor` | `chucktilbury/cedit`, `main` | `cf3a85e931c7c3df8ed3434db320f86b99ebc912` |
-| `debugger` | `chucktilbury/cdbg`, `main` | `ea7d715eff3ce0d0cba45c143bb86d7d667358dd` |
-| `website` | `chucktilbury/cwhip-website`, `main` | `fca61b480e03ac6b4d610995b8a603286f6771ff` |
+```sh
+git ls-tree HEAD compiler editor debugger website
+git submodule status --recursive
+```
 
-This table describes the seed, not future updates; inspect the current Git
-links with `git ls-tree HEAD compiler editor debugger website`. The `branch`
+This avoids relying on a stale copy of the seed revisions. The `branch`
 fields in `.gitmodules` guide explicit remote updates only. They do not make
 normal initialization or builds follow those branches automatically.
 
