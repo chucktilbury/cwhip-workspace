@@ -11,6 +11,20 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
+The selected editor and debugger revisions must each contain their standalone
+root `CMakeLists.txt`. Configuration fails immediately with the exact missing
+path if either interface is absent, even in compiler-only configurations.
+A workspace commit does not include uncommitted changes inside submodules:
+an older pin cannot acquire the new interface merely by reinitializing it.
+Until the component changes are committed/tagged and the workspace pins updated,
+use the isolated checkout containing those changes. Do not implicitly copy
+uncommitted component files from another worktree. Delivery requires the component
+changes to be committed and made available first, followed by a workspace
+Git-link update selecting those revisions; only then can an ordinary recursive
+clone reproduce this build. `test-all` also preflights both interfaces before
+creating its private outputs or building compiler suites, protecting existing
+build directories if a component checkout changes after configuration.
+
 Requirements: Linux/POSIX, CMake >= 3.24, a C11/C++17 toolchain, Clang on
 PATH, Python >= 3.11 (standard library only), SQLite 3 development files,
 and the **Unix Makefiles** generator. Other generators, including Ninja, are

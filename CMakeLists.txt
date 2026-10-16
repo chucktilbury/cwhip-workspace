@@ -24,6 +24,22 @@ foreach(component compiler editor debugger website)
     endif()
 endforeach()
 
+foreach(component editor debugger)
+    set(component_project "${CMAKE_CURRENT_SOURCE_DIR}/${component}/CMakeLists.txt")
+    if(NOT EXISTS "${component_project}")
+        message(FATAL_ERROR
+            "Missing standalone ${component} project: ${component_project}\n"
+            "This workspace requires the standalone component CMake interfaces. "
+            "The checked-out component revision is too old or incomplete. "
+            "Uncommitted additions in another component worktree are not included by workspace commits or submodule pins.\n"
+            "Use the isolated checkout containing those component changes, or wait for the standalone component revisions "
+            "to be committed/tagged and the workspace submodule pins updated, then initialize those selected revisions explicitly. "
+            "Do not copy uncommitted component files implicitly.\n"
+            "The later application configure would use: cmake -S \"${CMAKE_CURRENT_SOURCE_DIR}/${component}\" "
+            "-B <application-build-directory>")
+    endif()
+endforeach()
+
 find_package(Python3 3.11 REQUIRED COMPONENTS Interpreter)
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)

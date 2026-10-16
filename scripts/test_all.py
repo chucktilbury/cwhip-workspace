@@ -16,6 +16,21 @@ def main() -> None:
         parser.add_argument("--" + name, required=True)
     args = parser.parse_args()
     source, build = args.source.resolve(), args.build.resolve()
+    for component in ("editor", "debugger"):
+        project = source / component / "CMakeLists.txt"
+        if not project.is_file():
+            raise RuntimeError(
+                f"Missing standalone {component} project: {project}\n"
+                "This workspace requires the standalone component CMake interfaces. "
+                "The checked-out component revision is too old or incomplete. "
+                "Uncommitted additions in another component worktree are not included "
+                "by workspace commits or submodule pins.\n"
+                "Use the isolated checkout containing those component changes, or wait "
+                "for the standalone component revisions to be committed/tagged and the "
+                "workspace submodule pins updated, then initialize those selected revisions "
+                "explicitly. Do not copy uncommitted component files implicitly.\n"
+                f'The application configure would use: cmake -S "{source / component}" '
+                "-B <application-build-directory>")
     work = build / "test-all"
     work.mkdir(parents=True, exist_ok=True)
     env = {key: value for key, value in os.environ.items()
