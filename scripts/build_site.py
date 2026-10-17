@@ -12,6 +12,22 @@ def build(workspace: Path, work: Path, api_html: Path | None) -> None:
     if workspace == work or work in workspace.parents:
         raise ValueError("Website staging must be separate from the workspace root")
 
+    doc_stage = (work / "doc").resolve()
+    protected_paths = [
+        *(workspace / name for name in ("compiler", "editor", "debugger", "cmacros", "website")),
+        workspace / "doc",
+    ]
+    protected_paths = [path.resolve() for path in protected_paths]
+    staging_paths = (work, doc_stage)
+    for staging_path in staging_paths:
+        for protected_path in protected_paths:
+            if (staging_path == protected_path
+                    or staging_path in protected_path.parents
+                    or protected_path in staging_path.parents):
+                raise ValueError(
+                    f"Website staging path overlaps protected workspace input: {staging_path}"
+                )
+
     required = (
         "website/build.py",
         "website/check_site.py",
@@ -29,7 +45,6 @@ def build(workspace: Path, work: Path, api_html: Path | None) -> None:
         if not (workspace / name).is_file():
             raise ValueError(f"Required workspace website input missing: {workspace / name}")
 
-    doc_stage = work / "doc"
     if api_html is not None:
         api_html = api_html.resolve()
         if not (api_html / "index.html").is_file():
