@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 
-COMPONENTS = ("compiler", "editor", "debugger", "website")
+COMPONENTS = ("compiler", "editor", "debugger", "cmacros", "website")
 
 
 def git(root, *args):

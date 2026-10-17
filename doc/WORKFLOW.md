@@ -34,7 +34,7 @@ Ordinary builds must not run `git submodule update --remote`.
 Inspect the current committed pins and initialized checkouts directly:
 
 ```sh
-git ls-tree HEAD compiler editor debugger website
+git ls-tree HEAD compiler editor debugger cmacros website
 git submodule status --recursive
 ```
 
@@ -145,17 +145,27 @@ Acceptance includes a clean install prefix with no source-tree assumptions
 and documented compatible versions. Do not treat today's integrated application
 targets as proof that the external repositories can build independently.
 
-### 2. External applications
+### 2. Standalone CLI and GUI applications
 
-After the SDK boundary is established, build `cedit` and `cdbg` against a clean
-installed prefix, with standalone tests/CI, installation, packaging, and an
-explicit compiler compatibility policy:
+The standalone `cmacros` CLI builds against the installed Cwhip 0.0.1 SDK
+without GTK and is included in the default workspace build. Its upstream
+project owns the implementation, examples, tests and MIT license:
+
+- [chucktilbury/cmacros](https://github.com/chucktilbury/cmacros)
+
+It is a standalone macro processor, not a required compiler preprocessing
+stage. The workspace configures it against the staged SDK, installs its
+executable into the shared stage, and runs its component-owned CTest suite.
+
+The `cedit` and `cdbg` GUI projects build against a clean installed prefix,
+with standalone tests/CI, installation, packaging, and an explicit compiler
+compatibility policy:
 
 - [chucktilbury/cedit#1](https://github.com/chucktilbury/cedit/issues/1)
 - [chucktilbury/cdbg#1](https://github.com/chucktilbury/cdbg/issues/1)
 
-The application projects own independent CMake/build/test/clean/install
-interfaces and fixtures. See their
+Each application project owns an independent CMake/build/test/clean/install
+interface and fixtures. See their
 [`editor/doc/BUILD.md`](../editor/doc/BUILD.md) and
 [`debugger/doc/BUILD.md`](../debugger/doc/BUILD.md). Configure either with
 `-DCMAKE_PREFIX_PATH=/path/to/installed-sdk`; no compiler/workspace checkout
@@ -178,17 +188,13 @@ requirements, links, and resulting artifacts reproducible:
 - [chucktilbury/cwhip#2](https://github.com/chucktilbury/cwhip/issues/2)
 - [chucktilbury/cwhip-website#1](https://github.com/chucktilbury/cwhip-website/issues/1)
 
-The pinned `website/build.py` expects to run from the site directory and looks
-for documentation Markdown in its **parent** plus `content/`. The umbrella
-layout does not satisfy the old parent-directory assumption directly. The
-workspace's explicit `website` target now stages `compiler/doc/*.md` and
-`website/content/` under the binary directory before running the pinned
-generator. It generates fresh real Markdown pages, CSS, JavaScript and the
-manifest-driven docs index; it does not copy a prebuilt site. The pinned
-Doxygen ZIP contains no HTML. By default the target diagnoses this and omits
-the API index link; an existing HTML reference may be supplied explicitly
-with `CWHIP_WEBSITE_API_HTML`. Fresh API generation and comprehensive
-cross-repository link validation remain future work. See [BUILD.md](BUILD.md).
+The pinned `website/build.py` supports full-workspace input. The explicit
+`website` target passes the workspace root and writes generated pages into the
+binary tree; it includes cmacros guides and original example assets alongside
+compiler, editor, debugger and workflow documentation. The site builder checks
+required source pages and local links; it does not copy a prebuilt site.
+Doxygen HTML is optional and can be supplied with `CWHIP_WEBSITE_API_HTML`.
+Fresh API generation remains future work. See [BUILD.md](BUILD.md).
 
 ### 4. MANUAL publication
 
@@ -251,13 +257,14 @@ are rejected at configure time. See [BUILD.md](BUILD.md#clean).
 For independent clone validation, clone this repository into a fresh directory
 with `--recurse-submodules`, compare `git ls-tree HEAD` and
 `git submodule status --recursive` with the selected workspace revision, run
-the helper, and confirm `git status --short` is empty. All four component
+the helper, and confirm `git status --short` is empty. All five component
 directories must contain tracked source files at exactly the committed hashes.
 
 ## Licensing
 
-No new license or reuse grant is introduced by the umbrella. The compiler and
-application split's licensing choice is unresolved in
+No new license or reuse grant is introduced by the umbrella. cmacros is
+MIT-licensed in its owning repository. The compiler and GUI application split's
+licensing choice is unresolved in
 [chucktilbury/cwhip#3](https://github.com/chucktilbury/cwhip/issues/3).
 Public repository visibility alone does not grant reuse or redistribution
 rights. Confirm an explicit licensing policy with the owner before inviting

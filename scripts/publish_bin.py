@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 
-NAMES = ("cwhip", "cwhip-pkg", "cedit", "cedit.bin", "cdbg")
+NAMES = ("cwhip", "cwhip-pkg", "cmacros", "cedit", "cedit.bin", "cdbg")
 
 
 def publish(stage: Path, output: Path, names: list[str], enabled: list[str]) -> None:

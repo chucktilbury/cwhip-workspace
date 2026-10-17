@@ -35,6 +35,7 @@ class PublicationTests(unittest.TestCase):
             self.assertFalse((output / "cedit").is_symlink())
             self.assertFalse((output / "cedit.bin").is_symlink())
             self.assertFalse((output / "cdbg").is_symlink())
+            self.assertFalse((output / "cmacros").is_symlink())
             (output / "cwhip").unlink()
             (output / "cwhip").write_text("User file")
             with self.assertRaisesRegex(ValueError, "non-symlink"):

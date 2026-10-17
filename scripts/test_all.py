@@ -12,11 +12,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("source", "build"):
         parser.add_argument("--" + name, type=Path, required=True)
-    for name in ("cmake", "ctest", "cc", "cxx", "clang", "gtk", "sourceview", "editor", "debugger"):
+    for name in ("cmake", "ctest", "cc", "cxx", "clang", "gtk", "sourceview",
+                 "editor", "debugger", "cmacros"):
         parser.add_argument("--" + name, required=True)
     args = parser.parse_args()
     source, build = args.source.resolve(), args.build.resolve()
-    for component in ("editor", "debugger"):
+    for component in ("editor", "debugger", "cmacros"):
         project = source / component / "CMakeLists.txt"
         if not project.is_file():
             raise RuntimeError(
@@ -33,7 +34,7 @@ def main() -> None:
                 "-B <application-build-directory>")
     work = build / "test-all"
     work.mkdir(parents=True, exist_ok=True)
-    env = {key: value for key, value in os.environ.items()
+    test_env = {key: value for key, value in os.environ.items()
            if not key.startswith("CWHIP_") and key not in
            ("DESTDIR", "CC", "DISPLAY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS",
             "MAKEFLAGS", "MFLAGS", "MAKELEVEL", "CTEST_PARALLEL_LEVEL")}
@@ -42,15 +43,16 @@ def main() -> None:
                       ("XDG_STATE_HOME", "state"), ("XDG_RUNTIME_DIR", "runtime")):
         path = work / name
         path.mkdir(mode=0o700, exist_ok=True)
-        env[key] = str(path)
-    env["PYTHONDONTWRITEBYTECODE"] = "1"
+        test_env[key] = str(path)
+    test_env["PYTHONDONTWRITEBYTECODE"] = "1"
     temporary = work / "tmp"
     temporary.mkdir(exist_ok=True)
-    env["TMPDIR"] = str(temporary)
+    test_env["TMPDIR"] = str(temporary)
 
-    def run(*command):
+    def run(*command, env=None):
         print("+", " ".join(map(str, command)), flush=True)
-        subprocess.run([str(item) for item in command], cwd=work, env=env, check=True)
+        subprocess.run([str(item) for item in command], cwd=work,
+                       env=env if env is not None else test_env, check=True)
 
     gtk = args.gtk == "ON"
     sourceview = args.sourceview == "ON"
@@ -91,12 +93,27 @@ def main() -> None:
             "-DCMAKE_BUILD_TYPE=Debug", "-DBUILD_TESTING=ON", *internal_tests)
         run(args.cmake, "--build", app_build, "--parallel", "4")
         app_suites.append((name, app_build, ()))
+    if args.cmacros == "ON":
+        app_build = work / "cmacros"
+        cmacros_env = test_env.copy()
+        cmacros_env["CWHIP_SDK"] = str(prefix)
+        run(args.cmake, "-S", source / "cmacros", "-B", app_build, "-G", "Unix Makefiles",
+            f"-DCMAKE_PREFIX_PATH={prefix}", f"-DCwhip_DIR={prefix / 'lib/cmake/Cwhip'}",
+            f"-DCMAKE_INSTALL_PREFIX={app_build / 'install'}",
+            f"-DCWHIP_BIN_DIR={app_build / 'bin'}",
+            f"-DCWHIP_LIB_DIR={app_build / 'lib'}",
+            "-DCMAKE_BUILD_TYPE=Debug", "-DBUILD_TESTING=ON", env=cmacros_env)
+        run(args.cmake, "--build", app_build, "--parallel", "4")
+        app_suites.append(("cmacros", app_build, ()))
+    else:
+        print("EXCLUDED: standalone cmacros (disabled)", flush=True)
     failures = []
     # Run every suite even if an earlier suite fails, then propagate failure.
     suites = [
         ("compiler", suite, ("--exclude-regex", r"^(cedit_|cdbg_|cwhip_example_editor_)")),
         *app_suites,
-        ("workspace", build, ()),
+        ("workspace", build,
+         ("--exclude-regex", "^workspace_cmacros$") if args.cmacros == "ON" else ()),
     ]
     print("EXCLUDED from compiler CTest: integrated cedit_*, cdbg_* and "
           "cwhip_example_editor_* (monorepo copies). Standalone component-owned suites replace them. "
@@ -111,7 +128,8 @@ def main() -> None:
             failures.append(name)
     try:
         run(sys.executable, source / "tests/sdk_checks.py", "--prefix", prefix,
-            "--cmake", args.cmake, "--ctest", args.ctest, "--apps", "OFF")
+            "--cmake", args.cmake, "--ctest", args.ctest, "--apps", "OFF",
+            "--cmacros", args.cmacros)
     except subprocess.CalledProcessError:
         failures.append("relocated SDK external-project contract")
     if failures:
