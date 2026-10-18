@@ -4,7 +4,7 @@ execute_process(
 if(NOT result EQUAL 0)
     message(FATAL_ERROR "Nested compiler clean failed (${result})")
 endif()
-foreach(app cedit cdbg)
+foreach(app cmacros cedit cdbg)
     if(EXISTS "@CMAKE_BINARY_DIR@/apps/${app}/CMakeCache.txt")
         execute_process(
             COMMAND "@CMAKE_COMMAND@" --build "@CMAKE_BINARY_DIR@/apps/${app}" --target clean

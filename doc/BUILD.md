@@ -15,15 +15,16 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-The selected editor and debugger revisions must each contain their standalone
-root `CMakeLists.txt`. Configuration fails immediately with the exact missing
-path if either interface is absent, even in compiler-only configurations.
+The selected cmacros, editor and debugger revisions must each contain their
+standalone root `CMakeLists.txt`. Configuration fails immediately with the
+exact missing path if an interface is absent, even when that component is
+disabled.
 A workspace commit does not include uncommitted changes inside submodules.
 The selected pins contain these interfaces and can be initialized normally;
 no private patches or another worktree's files are required. An older pin
 cannot acquire a new interface merely by reinitializing it: use the selected
 workspace revisions, not copied uncommitted component files.
-`test-all` also preflights both interfaces before
+`test-all` also preflights all three interfaces before
 creating its private outputs or building compiler suites, protecting existing
 build directories if a component checkout changes after configuration.
 
@@ -38,15 +39,17 @@ preserved when no build type is selected. GNU/Clang SDK runtimes retain type
 debug metadata even in Release, for source-free debugger object inspection;
 this does not change runtime optimization or bundle system libraries.
 
-GTK 4 >= 4.10 and GtkSourceView 5 development packages are detected through
-pkg-config. When both bindings are enabled, the default build includes the
-editor and debugger from **editor/src** and **debugger/src**, not the duplicate
-integrated application sources in the compiler checkout.
+The `cmacros` CLI is built against the staged Cwhip 0.0.1 SDK and has no GTK
+dependency. GTK 4 >= 4.10 and GtkSourceView 5 development packages are
+detected through pkg-config. When both bindings are enabled, the default
+build includes the editor and debugger from **editor/src** and **debugger/src**,
+not the duplicate integrated application sources in the compiler checkout.
 
 Named targets can be built separately:
 
 ```sh
 cmake --build build --target cwhip
+cmake --build build --target cmacros
 cmake --build build --target cedit cdbg
 ```
 
@@ -57,7 +60,8 @@ runtime and package changes; unchanged files/binaries retain their timestamps.
 
 No configure/build/test updates submodules, accesses component remote tips,
 uses the user's desktop, deploys a website, or requires hosting credentials.
-The focused root CTest invokes `cdbg --help` only, without creating a window;
+The focused root CTest runs the actual cmacros component suite and invokes
+`cdbg --help` without creating a window;
 `test-all` also runs automated GUI checks on isolated Xvfb/DBus sessions.
 Manual GUI launch and
 interactive GDB debugging remain manual; using the debugger requires GDB,
@@ -71,10 +75,11 @@ and its value inspector requires Python-enabled GDB with `gdb.MICommand`.
 | `CWHIP_GTK_SOURCEVIEW` | Detect GtkSourceView with GTK enabled | SourceView bindings; requires `CWHIP_GTK=ON` |
 | `CWHIP_BUILD_CEDIT` | ON | Include external editor when GUI bindings are enabled |
 | `CWHIP_BUILD_CDBG` | ON | Include external debugger when GUI bindings are enabled |
+| `CWHIP_BUILD_CMACROS` | ON | Include standalone cmacros CLI, independent of GTK |
 | `BUILD_TESTING` | ON | Build the native helper test and register focused CTest checks |
 | `CWHIP_WEBSITE_API_HTML` | Empty | Optional pre-generated Doxygen HTML directory containing `index.html` |
 
-For a compiler-only build, explicitly disable both GUI bindings (including
+For a headless build, explicitly disable both GUI bindings (including
 when reconfiguring a directory previously configured with GUI enabled):
 
 ```sh
@@ -83,11 +88,12 @@ cmake --build build-compiler
 ctest --test-dir build-compiler --output-on-failure
 ```
 
-If GTK/SourceView is not detected, the compiler still builds by default.
+If GTK/SourceView is not detected, the compiler and cmacros still build by default.
 Explicitly building an unavailable or disabled `cedit`/`cdbg` target fails
 with an enable/dependency diagnostic, never a success-shaped no-op.
 To keep the bindings but omit apps, set both `CWHIP_BUILD_CEDIT=OFF` and
-`CWHIP_BUILD_CDBG=OFF`. Use separate binary directories for configurations.
+`CWHIP_BUILD_CDBG=OFF`. Set `CWHIP_BUILD_CMACROS=OFF` to omit cmacros as well.
+Use separate binary directories for configurations.
 
 Custom directories, including paths containing spaces, work:
 
@@ -104,7 +110,8 @@ other custom binary directories should be outside the source tree.
 ## Outputs and installed SDK boundary
 
 User-facing executables are available in **workspace-root `bin/`**:
-`bin/cwhip`, `bin/cwhip-pkg`, `bin/cedit`, `bin/cedit.bin`, and `bin/cdbg`.
+`bin/cwhip`, `bin/cwhip-pkg`, `bin/cmacros`, `bin/cedit`, `bin/cedit.bin`,
+and `bin/cdbg`.
 These are maintained absolute symlinks to the selected build's real executables.
 The compiler resolves its real executable location and `cwhip-pkg` resolves
 its script path, preserving private SDK discovery without environment wrappers.
@@ -120,9 +127,9 @@ rejected rather than overwritten.
 
 **Root `bin/` is shared: the last build selects the active configuration.**
 Do not build or test different binary directories concurrently in one workspace.
-Build the desired configuration before running its CTests. A compiler-only
-build removes GUI links, and a compiler-only named target after switching builds
-does not publish unbuilt apps. Configure alone does not change links.
+Build the desired configuration before running its CTests. A no-GUI build
+removes GUI links, and a compiler-only named target after switching builds does
+not publish unbuilt apps. Configure alone does not change links.
 Private `stage/bin/` binaries may remain after disabling an app but are not
 published. Standard clean removes only links owned by the cleaned build,
 leaving another configuration's links untouched. Manually deleting an active
@@ -138,13 +145,13 @@ locks remain in the selected binary directory, here shown as `build/`:
 | --- | --- |
 | `compiler-build/` | Separate compiler CMake configuration and object files |
 | `compiler-stage/` | Compiler build outputs/resources, separate from installation |
-| `stage/bin/` | `cwhip`, generated `cwhip-pkg`, `cedit` launcher, `cedit.bin`, `cdbg` |
+| `stage/bin/` | `cwhip`, generated `cwhip-pkg`, installed `cmacros`, `cedit` launcher, `cedit.bin`, `cdbg` |
 | `stage/lib/cwhip/` | Runtime archive |
 | `stage/include/cwhip/` | Installed public runtime headers |
 | `stage/lib/cmake/Cwhip/` | Exact-version installed CMake SDK contract |
 | `stage/share/cwhip/builtin/` | Builtin language sources |
 | `stage/share/cwhip/modules/` | Standard packages, SQLite/GTK native archives, SourceView language resources |
-| `apps/cedit/`, `apps/cdbg/` | Independent app CMake build trees, native objects, private source projects/locks/HOME/XDG; debugger `values.h` |
+| `apps/cmacros/`, `apps/cedit/`, `apps/cdbg/` | Independent app CMake build trees and native objects; cmacros tests, editor projects/locks/HOME/XDG, debugger `values.h` |
 | `tests/` | Focused test binaries, fixtures and isolated configuration |
 | `website/doc/website/site/` | Explicitly generated site |
 | `test-all/` | Full compiler Debug build/stage/install, independent app builds and isolated test outputs |
@@ -153,7 +160,8 @@ Application builds use the installed compiler's package discovery and
 `cwhip-pkg init` to lock the standard packages. Runtime/include/builtin/module
 paths are set to the selected installed prefix, legacy and user module overrides are
 cleared, and HOME/XDG configuration is isolated per app. No user package
-configuration is imported. Changes to native archives, SDK headers/resources,
+configuration is imported. Workspace SDK installs do not update the user's
+`sdk_prefix` setting. Changes to native archives, SDK headers/resources,
 package manifests, app sources, launcher, terminal helper and inspector/embed
 scripts participate in incremental dependencies. Source copies are refreshed
 when rebuilding an app, so removed files cannot linger in its staged sources.
@@ -161,9 +169,10 @@ when rebuilding an app, so removed files cannot linger in its staged sources.
 The compiler is built into `compiler-stage/`, then its native CMake install
 rules populate `stage/`. Each application is configured from its own project
 root with `CMAKE_PREFIX_PATH=stage`; the umbrella no longer compiles app sources
-or borrows compiler-owned app fixtures. Both applications own build, test,
-clean and install interfaces. Their installation merges executable files and
-resources into the same private prefix. Installed apps/resources contain no
+or borrows compiler-owned app fixtures. The cmacros, editor and debugger
+projects own their build, test, clean and install interfaces. Their
+installations merge executables and resources into the same private prefix.
+Installed apps/resources contain no
 required compiler/workspace source path; GTK discovers bundled language
 definitions relative to the running executable.
 
@@ -253,19 +262,16 @@ Generation is opt-in, not part of the default app build:
 cmake --build build --target website
 ```
 
-The adapter recreates only `build/website/doc/`, copies compiler documentation
-Markdown into that staged `doc/` and website content/generator into its child
-`website/`, then runs the pinned cwd-relative generator there. Each invocation
-reads current inputs and removes stale output pages. It produces all compiler
-Markdown pages, the site pages, docs-manifest index, CSS and JavaScript under
-`build/website/doc/website/site/`. Missing manifest documents or assets are
-errors, not silently skipped pages. Component sources remain untouched.
+The adapter invokes the pinned website builder in full-workspace mode with the
+workspace source root. It recreates only `build/website/doc/`, then generates
+component-owned compiler, editor, debugger, cmacros and workflow pages, the
+docs-manifest index, original cmacros example assets, CSS and JavaScript under
+`build/website/doc/website/site/`. Missing component guides, examples,
+manifest documents or local links are errors, not silently skipped pages.
+Component sources remain untouched.
 
-The pinned `cwhip-doxygen-link.zip` contains site sources/assets, **no Doxygen
-HTML reference**. Without an explicit HTML input, generation emits a diagnostic
-and removes the unavailable API reference from the staged docs index. It does
-not invent an API page or run the compiler's source-tree-writing Doxygen rules.
-To include an existing reviewed reference:
+The pinned site does not require Doxygen HTML. An existing reviewed API
+reference may optionally be copied into the generated `site/html/` directory:
 
 ```sh
 cmake -S . -B build -DCWHIP_WEBSITE_API_HTML=/absolute/path/to/doxygen/html
@@ -273,9 +279,9 @@ cmake --build build --target website
 ```
 
 That directory must contain `index.html`; its complete contents are copied to
-the generated `site/html/` and the manifest API link is retained. Fresh API
-generation is future work. The pinned Markdown renderer is deliberately
-simple; this adapter does not claim exhaustive cross-document/anchor validation.
+the generated `site/html/`. Fresh API generation is future work. The builder
+validates generated local links and fragments. Website generation remains
+explicit and never writes to component source trees.
 
 **WEBSITE UPLOAD MANUAL.** Review the generated site locally, including its
 docs, assets and any supplied API reference, before manually publishing.
@@ -345,10 +351,11 @@ If `workspace_diagnostics` reports `MISMATCH`, see
 [Troubleshooting: pin MISMATCH](WORKFLOW.md#troubleshooting-pin-mismatch)
 for recording intended component revisions or restoring the committed pins.
 
-The default six CTest entries cover read-only component diagnostics, existing
-status unit tests plus website tests, native PTY transport, compiler compilation
-and execution through root `bin/cwhip`, root package-tool discovery,
-launcher sibling resolution with a harmless test companion, `bin/cdbg --help`,
+The focused CTest entries cover read-only component diagnostics, the cmacros
+component CTest suite, status/publication/clean-helper unit tests plus website
+tests, native PTY transport, compiler compilation and execution through root
+`bin/cwhip`, root package-tool discovery, launcher sibling resolution with a
+harmless test companion, `bin/cdbg --help`,
 publication switching/repair/no-op behavior, exact embedded inspector bytes, real GDB value
 inspection and the external debugger's MI
 parser checks. GDB absence is explicitly reported as a skipped inspector check;

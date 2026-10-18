@@ -6,7 +6,7 @@ import subprocess
 
 
 ROOT = Path(__file__).resolve().parents[1]
-NAMES = ("cwhip", "cwhip-pkg", "cedit", "cedit.bin", "cdbg")
+NAMES = ("cwhip", "cwhip-pkg", "cmacros", "cedit", "cedit.bin", "cdbg")
 
 
 def command(*args):
@@ -21,7 +21,7 @@ def links():
 def assert_clean(build):
     for name in ("stage", "compiler-stage", "tests", "website", "Testing", "test-all"):
         assert not (build / name).exists(), build / name
-    for app in ("cedit", "cdbg"):
+    for app in ("cmacros", "cedit", "cdbg"):
         project = build / "apps" / app
         assert not project.exists(), project
     assert not list((build / "compiler-build").rglob("*.o")), "Nested compiler objects survived"

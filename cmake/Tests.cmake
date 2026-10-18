@@ -1,5 +1,10 @@
 add_test(NAME workspace_diagnostics
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/scripts/status.py" --allow-dirty)
+if(CWHIP_BUILD_CMACROS)
+    add_test(NAME workspace_cmacros
+        COMMAND "${CMAKE_CTEST_COMMAND}" --test-dir "${CMAKE_BINARY_DIR}/apps/cmacros"
+            --output-on-failure)
+endif()
 add_test(NAME workspace_python
     COMMAND "${Python3_EXECUTABLE}" -m unittest discover -s "${CMAKE_SOURCE_DIR}/tests" -v)
 set(test_work "${CMAKE_BINARY_DIR}/tests")

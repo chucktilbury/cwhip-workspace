@@ -7,7 +7,7 @@ import unittest
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "status.py"
-COMPONENTS = ("compiler", "editor", "debugger", "website")
+COMPONENTS = ("compiler", "editor", "debugger", "cmacros", "website")
 
 
 class StatusTests(unittest.TestCase):

@@ -14,3 +14,7 @@
 	path = website
 	url = https://github.com/chucktilbury/cwhip-website.git
 	branch = main
+[submodule "cmacros"]
+	path = cmacros
+	url = https://github.com/chucktilbury/cmacros.git
+	branch = main

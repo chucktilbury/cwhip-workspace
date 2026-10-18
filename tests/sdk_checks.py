@@ -42,6 +42,7 @@ def main():
     parser.add_argument("--cmake", default="cmake")
     parser.add_argument("--ctest", default="ctest")
     parser.add_argument("--apps", choices=("ON", "OFF"), default="ON")
+    parser.add_argument("--cmacros", choices=("ON", "OFF"), default="ON")
     args = parser.parse_args()
     # test-all intentionally sets TMPDIR inside its build; this check must leave it.
     with tempfile.TemporaryDirectory(prefix="cwhip standalone acceptance ", dir="/tmp") as directory:
@@ -51,7 +52,7 @@ def main():
         shutil.copytree(args.prefix.resolve(), original)
         original.rename(relocated)
         assert not original.exists()
-        env = {key: value for key, value in os.environ.items()
+        clean_env = {key: value for key, value in os.environ.items()
                if not key.startswith("CWHIP_") and key not in (
                    "CC", "DESTDIR", "DISPLAY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS",
                    "MAKEFLAGS", "MFLAGS", "MAKELEVEL", "CTEST_PARALLEL_LEVEL", "CMAKE_PREFIX_PATH",
@@ -60,14 +61,15 @@ def main():
                     "XDG_STATE_HOME", "XDG_RUNTIME_DIR", "TMPDIR"):
             path = work / key.lower()
             path.mkdir(mode=0o700)
-            env[key] = str(path)
-        env["PYTHONDONTWRITEBYTECODE"] = "1"
-        env["PATH"] = str(relocated / "bin") + os.pathsep + os.pathsep.join(
+            clean_env[key] = str(path)
+        clean_env["PYTHONDONTWRITEBYTECODE"] = "1"
+        clean_env["PATH"] = str(relocated / "bin") + os.pathsep + os.pathsep.join(
             part for part in os.get_exec_path() if not Path(part).is_relative_to(ROOT))
 
-        def run(*command, fail=False):
+        def run(*command, fail=False, env=None):
             print("+", " ".join(map(str, command)), flush=True)
-            result = subprocess.run([str(item) for item in command], env=env, cwd=work,
+            result = subprocess.run([str(item) for item in command],
+                                    env=env if env is not None else clean_env, cwd=work,
                                     text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                     timeout=900)
             print(result.stdout, end="", flush=True)
@@ -133,6 +135,31 @@ def main():
         (wrong_version / "CMakeLists.txt").write_text(PROJECT.replace("0.0.1", "999.0.0"))
         run(args.cmake, "-S", wrong_version, "-B", work / "incompatible sdk",
             f"-DCMAKE_PREFIX_PATH={relocated}", fail=True)
+        if args.cmacros == "ON":
+            app_source = work / "cmacros source"
+            shutil.copytree(ROOT / "cmacros", app_source, ignore=shutil.ignore_patterns(
+                ".git", "build*", "__pycache__"))
+            app_build = work / "cmacros build"
+            cmacros_env = clean_env.copy()
+            cmacros_env["CWHIP_SDK"] = str(relocated)
+            run(args.cmake, "-S", app_source, "-B", app_build,
+                f"-DCMAKE_PREFIX_PATH={relocated}", "-DCMAKE_BUILD_TYPE=Debug",
+                f"-DCWHIP_BIN_DIR={app_build / 'bin'}",
+                f"-DCWHIP_LIB_DIR={app_build / 'lib'}",
+                env=cmacros_env)
+            run(args.cmake, "--build", app_build, "--parallel", "4")
+            run(args.ctest, "--test-dir", app_build, "--output-on-failure", "--parallel", "1")
+            installed = work / "cmacros installed"
+            run(args.cmake, "--install", app_build, "--prefix", installed)
+            moved = work / "cmacros relocated"
+            installed.rename(moved)
+            assert run(moved / "bin/cmacros", "--version").stdout == "cmacros: v1.0\n"
+            run(args.cmake, "--build", app_build, "--target", "clean")
+            assert not (app_build / "bin/cmacros").exists()
+            run(args.cmake, "--build", app_build, "--parallel", "4")
+            run(args.ctest, "--test-dir", app_build, "--output-on-failure", "--parallel", "1")
+        else:
+            print("EXCLUDED: independent cmacros SDK/build/install/relocation suite (--cmacros OFF)")
         if args.apps == "ON":
             for app in ("editor", "debugger"):
                 app_source = work / (app + " source")

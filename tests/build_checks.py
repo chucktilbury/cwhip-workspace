@@ -42,6 +42,8 @@ def outputs(build):
     stage = build / "stage"
     paths = [stage / "bin/cwhip", stage / "lib/cwhip/libcwhip_runtime.a",
              build / "compiler-build/src/cwhip-resources.stamp"]
+    if (stage / "bin/cmacros").is_file():
+        paths.append(stage / "bin/cmacros")
     for name in ("cedit", "cedit.bin", "cdbg"):
         path = stage / "bin" / name
         if path.exists():

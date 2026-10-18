@@ -11,7 +11,7 @@ endif()
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
     message(FATAL_ERROR "Use an out-of-source build: cmake -S . -B build")
 endif()
-foreach(component compiler editor debugger website)
+foreach(component compiler editor debugger cmacros website)
     file(REAL_PATH "${CMAKE_SOURCE_DIR}/${component}" component_source)
     file(REAL_PATH "${CMAKE_BINARY_DIR}" workspace_binary)
     cmake_path(IS_PREFIX component_source "${workspace_binary}" NORMALIZE inside_component)
@@ -24,7 +24,7 @@ foreach(component compiler editor debugger website)
     endif()
 endforeach()
 
-foreach(component editor debugger)
+foreach(component editor debugger cmacros)
     set(component_project "${CMAKE_CURRENT_SOURCE_DIR}/${component}/CMakeLists.txt")
     if(NOT EXISTS "${component_project}")
         message(FATAL_ERROR
@@ -54,6 +54,7 @@ endif()
 option(CWHIP_GTK_SOURCEVIEW "Build the compiler's GtkSourceView bindings" ${sourceview_default})
 option(CWHIP_BUILD_CEDIT "Include the external editor in the default build" ON)
 option(CWHIP_BUILD_CDBG "Include the external debugger in the default build" ON)
+option(CWHIP_BUILD_CMACROS "Include the standalone cmacros CLI in the default build" ON)
 
 set(workspace_stage "${CMAKE_BINARY_DIR}/stage")
 set(compiler_stage "${CMAKE_BINARY_DIR}/compiler-stage")
@@ -61,6 +62,9 @@ set(compiler_build "${CMAKE_BINARY_DIR}/compiler-build")
 set(workspace_bin "${workspace_stage}/bin")
 set(workspace_public_bin "${CMAKE_SOURCE_DIR}/bin")
 set(workspace_enabled_bins cwhip cwhip-pkg)
+if(CWHIP_BUILD_CMACROS)
+    list(APPEND workspace_enabled_bins cmacros)
+endif()
 if(CWHIP_GTK_SOURCEVIEW AND CWHIP_BUILD_CEDIT)
     list(APPEND workspace_enabled_bins cedit cedit.bin)
 endif()
@@ -96,6 +100,7 @@ set(compiler_configure "${CMAKE_COMMAND}" -S "${CMAKE_SOURCE_DIR}/compiler" -B "
         -DCMAKE_INSTALL_BINDIR=bin -DCMAKE_INSTALL_LIBDIR=lib
         -DCMAKE_INSTALL_INCLUDEDIR=include -DCMAKE_INSTALL_DATADIR=share
         "-DCWHIP_GTK=${CWHIP_GTK}" "-DCWHIP_GTK_SOURCEVIEW=${CWHIP_GTK_SOURCEVIEW}"
+        -DCWHIP_REGISTER_SDK=OFF
         -DBUILD_TESTING=OFF)
 execute_process(COMMAND ${compiler_configure} COMMAND_ERROR_IS_FATAL ANY)
 load_cache("${compiler_build}" READ_WITH_PREFIX compiler_ CWHIP_CLANG_EXECUTABLE)
@@ -125,13 +130,13 @@ add_custom_target(check-sdk
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tests/sdk_checks.py"
         --prefix "${workspace_stage}" --cmake "${CMAKE_COMMAND}"
         --ctest "${CMAKE_CTEST_COMMAND}" "--apps=${sdk_check_apps}"
+        "--cmacros=${CWHIP_BUILD_CMACROS}"
     DEPENDS ${sdk_check_dependencies} USES_TERMINAL VERBATIM)
 
 set(CWHIP_WEBSITE_API_HTML "" CACHE PATH "Optional existing Doxygen HTML directory containing index.html")
 add_custom_target(website
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/scripts/build_site.py"
-        --compiler-doc "${CMAKE_SOURCE_DIR}/compiler/doc"
-        --website "${CMAKE_SOURCE_DIR}/website"
+        --workspace "${CMAKE_SOURCE_DIR}"
         --work "${CMAKE_BINARY_DIR}/website"
         "--api-html=${CWHIP_WEBSITE_API_HTML}"
     USES_TERMINAL VERBATIM)
@@ -139,6 +144,9 @@ add_custom_target(website
 if(BUILD_TESTING)
     include(cmake/Tests.cmake)
     set(test_all_dependencies cwhip workspace_terminal_test)
+    if(CWHIP_BUILD_CMACROS)
+        list(APPEND test_all_dependencies cmacros)
+    endif()
     if(CWHIP_GTK_SOURCEVIEW AND CWHIP_BUILD_CEDIT)
         list(APPEND test_all_dependencies cedit)
     endif()
@@ -153,6 +161,7 @@ if(BUILD_TESTING)
             --clang "${compiler_CWHIP_CLANG_EXECUTABLE}"
             "--gtk=${CWHIP_GTK}" "--sourceview=${CWHIP_GTK_SOURCEVIEW}"
             "--editor=${CWHIP_BUILD_CEDIT}" "--debugger=${CWHIP_BUILD_CDBG}"
+            "--cmacros=${CWHIP_BUILD_CMACROS}"
         DEPENDS ${test_all_dependencies}
         USES_TERMINAL VERBATIM)
 else()

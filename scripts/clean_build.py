@@ -15,7 +15,7 @@ def remove(path: Path) -> None:
 def clean(build: Path, public_bin: Path) -> None:
     build = build.resolve()
     stage = build / "stage"
-    for name in ("cwhip", "cwhip-pkg", "cedit", "cedit.bin", "cdbg"):
+    for name in ("cwhip", "cwhip-pkg", "cmacros", "cedit", "cedit.bin", "cdbg"):
         link = public_bin / name
         if link.is_symlink() and link.readlink() == stage / "bin" / name:
             link.unlink()
@@ -25,7 +25,7 @@ def clean(build: Path, public_bin: Path) -> None:
     for name in ("cedit_launcher", "cdbg_terminal"):
         remove(build / "CMakeFiles" / (name + ".dir"))
     apps = build / "apps"
-    for app in ("cedit", "cdbg"):
+    for app in ("cmacros", "cedit", "cdbg"):
         remove(apps / app)
 
 

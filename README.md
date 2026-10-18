@@ -1,7 +1,7 @@
 # Cwhip workspace
 
-Pinned development umbrella for the Cwhip compiler, editor, debugger, and
-website. Component source and history remain owned by their repositories;
+Pinned development umbrella for the Cwhip compiler, cmacros CLI, editor,
+debugger, and website. Component source and history remain owned by their repositories;
 this repository owns the selected revisions and cross-repository workflow.
 
 **New to Cwhip?** Follow [From no installation to a first program](doc/FIRST-PROGRAM.md)
@@ -14,6 +14,7 @@ not a promise of available Debian binary packages.
 | Path | Owner / contents |
 | --- | --- |
 | [`compiler/`](https://github.com/chucktilbury/cwhip) | `cwhip`: compiler, runtime, standard library, shared bindings, compiler documentation |
+| [`cmacros/`](https://github.com/chucktilbury/cmacros) | `cmacros`: standalone Cwhip CLI macro processor and its examples/tests |
 | [`editor/`](https://github.com/chucktilbury/cedit) | `cedit`: editor source and application documentation |
 | [`debugger/`](https://github.com/chucktilbury/cdbg) | `cdbg`: debugger source and application documentation |
 | [`website/`](https://github.com/chucktilbury/cwhip-website) | `cwhip-website`: site sources, generator, and publication assets |
@@ -35,11 +36,12 @@ ctest --test-dir build --output-on-failure
 cmake --build build --target test-all
 ```
 
-The compiler SDK builds/installs first; GTK-enabled builds configure the
-**standalone** editor and debugger through their own CMake projects against
-that installed prefix. Executables are available in workspace-root `bin/`
-through maintained links to the active build's private stage. Compiler-only
-builds, prerequisites and custom paths are described in [doc/BUILD.md](doc/BUILD.md).
+The compiler SDK builds/installs first; the standalone `cmacros` CLI and
+GTK-enabled editor/debugger are configured through their own CMake projects
+against that installed prefix. `cmacros` does not require GTK. Executables are
+available in workspace-root `bin/` through maintained links to the active
+build's private stage. Headless builds, prerequisites and custom paths are
+described in [doc/BUILD.md](doc/BUILD.md).
 Website generation is explicit: `cmake --build build --target website`.
 Its output is `build/website/doc/website/site/`. **WEBSITE UPLOAD MANUAL**:
 no build or test deploys anything, and `website/install.sh` must not be run.
