@@ -160,8 +160,26 @@ Application builds use the installed compiler's package discovery and
 `cwhip-pkg init` to lock the standard packages. Runtime/include/builtin/module
 paths are set to the selected installed prefix, legacy and user module overrides are
 cleared, and HOME/XDG configuration is isolated per app. No user package
-configuration is imported. Workspace SDK installs do not update the user's
-`sdk_prefix` setting. Changes to native archives, SDK headers/resources,
+configuration is imported. Workspace staging explicitly configures the compiler
+with `CWHIP_REGISTER_SDK=OFF`: it neither creates nor updates the user's
+`cwhip/sdk.toml` or editor/debugger `cwhip/settings.toml`.
+
+SDK selection is owned by the components, not by a workspace parser. With the
+separate SDK configuration rollout, a nonempty `CWHIP_SDK` takes precedence and
+bypasses configuration parsing. Otherwise, the selected config home is
+`XDG_CONFIG_HOME` (exclusive when nonempty; it must be absolute), or `$HOME/.config`.
+The top-level `sdk_prefix` in `cwhip/sdk.toml` selects the SDK. Only when that
+file is absent is the legacy `cwhip/settings.toml` consulted. A present
+`sdk.toml` without `sdk_prefix` proceeds to ordinary SDK discovery; an explicit
+empty, malformed, non-string, relative or nonexistent SDK prefix is an error,
+not a reason to fall back to legacy settings. SDK lookup is read-only.
+Independent compiler installation registers only `sdk.toml`, preserving editor
+settings; `DESTDIR` installs and `CWHIP_REGISTER_SDK=OFF` skip registration.
+These component changes require their companion revisions to be merged before
+workspace submodule pins are advanced; workspace staging's opt-out does not
+depend on that rollout.
+
+Changes to native archives, SDK headers/resources,
 package manifests, app sources, launcher, terminal helper and inspector/embed
 scripts participate in incremental dependencies. Source copies are refreshed
 when rebuilding an app, so removed files cannot linger in its staged sources.
