@@ -1,15 +1,18 @@
 # From no Cwhip installation to a first program
 
-This is the **source-install path available today**, on Linux/POSIX. It builds
-the pinned compiler SDK and standalone `cedit`, installs into your own directory,
-then edits, builds and runs a small program outside the checkout. It does not
-require another developer's build tree, private files, a website, or a packaged
-Cwhip release. Cwhip and cedit are prototypes.
+This guide describes the intended 0.0.2 `numeric-v2` source-install path on
+Linux/POSIX. It builds the compiler SDK and standalone `cedit`, installs into
+your own directory, then edits, builds and runs a small program outside the
+checkout. It does not require another developer's build tree, private files, a
+website, or a packaged Cwhip release. Cwhip and cedit are prototypes.
 
-The numeric-v2 SDK is source- and native-ABI-incompatible with 0.0.1. This guide
-targets Cwhip 0.0.2 with ABI `numeric-v2`; use it with workspace pins that
-include the pending compiler and consumer migrations listed in
-[WORKFLOW.md](WORKFLOW.md#numeric-v2-integration). Rebuild native packages and
+**This guide cannot be followed from the currently committed workspace pins.**
+They still select 0.0.1 compiler and consumer revisions, while this guide's
+example requires Cwhip 0.0.2 with ABI `numeric-v2`. The compiler and consumer
+migrations listed in [WORKFLOW.md](WORKFLOW.md#numeric-v2-integration) have
+merged upstream but have not been selected by this workspace. Wait for
+compatible pins before using the clone/build steps below. The numeric-v2 SDK
+is source- and native-ABI-incompatible with 0.0.1; rebuild native packages and
 do not mix files from different SDK prefixes.
 
 Already have a complete installed SDK and cedit? Set `CWHIP_PREFIX` and `PATH`

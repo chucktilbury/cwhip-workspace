@@ -4,10 +4,11 @@ Pinned development umbrella for the Cwhip compiler, cmacros CLI, editor,
 debugger, and website. Component source and history remain owned by their repositories;
 this repository owns the selected revisions and cross-repository workflow.
 
-**New to Cwhip?** Follow [From no installation to a first program](doc/FIRST-PROGRAM.md)
-to build and install into a user-local prefix, launch cedit, edit hello world,
-and compile/run it from the terminal. This is a source-install workflow,
-not a promise of available Debian binary packages.
+**New to Cwhip?** [From no installation to a first program](doc/FIRST-PROGRAM.md)
+documents the intended 0.0.2 `numeric-v2` source-install workflow. It is not
+usable with the currently committed 0.0.1 component pins; see the
+[integration status](doc/WORKFLOW.md#numeric-v2-integration). This is not a
+promise of available Debian binary packages.
 
 ## Directory index
 

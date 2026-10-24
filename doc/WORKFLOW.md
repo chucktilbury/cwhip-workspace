@@ -148,6 +148,11 @@ targets as proof that the external repositories can build independently.
 ### Numeric-v2 integration
 
 The 0.0.2 `numeric-v2` SDK is source- and native-ABI-incompatible with 0.0.1.
+The migrations below have merged upstream, but the current workspace Git links
+still select the earlier 0.0.1 component revisions. Until those pins are
+deliberately advanced and validated, builds from this workspace use the
+0.0.1 integration; the [first-program guide](FIRST-PROGRAM.md) describes the
+not-yet-available 0.0.2 source-install path.
 The compiler numeric execution and SDK/stdlib migrations landed in
 [chucktilbury/cwhip#25](https://github.com/chucktilbury/cwhip/pull/25) and
 [chucktilbury/cwhip#26](https://github.com/chucktilbury/cwhip/pull/26), based on
@@ -162,9 +167,11 @@ packages and do not mix SDK prefixes.
 
 ### 2. Standalone CLI and GUI applications
 
-The standalone `cmacros` CLI builds against the installed Cwhip 0.0.2
-`numeric-v2` SDK without GTK and is included in the default workspace build. Its upstream
-project owns the implementation, examples, tests and MIT license:
+The standalone `cmacros` CLI has no GTK dependency and is included in the
+default workspace build. The currently pinned revision requires Cwhip 0.0.1;
+its 0.0.2 `numeric-v2` migration has merged upstream but is not selected by
+the workspace Git link yet. Its upstream project owns the implementation,
+examples, tests and MIT license:
 
 - [chucktilbury/cmacros](https://github.com/chucktilbury/cmacros)
 
