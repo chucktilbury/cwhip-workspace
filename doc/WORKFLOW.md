@@ -152,7 +152,8 @@ This workspace integration depends on the compiler numeric execution migration
 in [chucktilbury/cwhip#25](https://github.com/chucktilbury/cwhip/pull/25) and
 the SDK and stdlib migration in
 [chucktilbury/cwhip#26](https://github.com/chucktilbury/cwhip/pull/26), based on
-#25. The standalone consumer migrations are
+[chucktilbury/cwhip#25](https://github.com/chucktilbury/cwhip/pull/25). The
+standalone consumer migrations are
 [chucktilbury/cedit#14](https://github.com/chucktilbury/cedit/pull/14),
 [chucktilbury/cdbg#15](https://github.com/chucktilbury/cdbg/pull/15), and
 [chucktilbury/cmacros#6](https://github.com/chucktilbury/cmacros/pull/6).
