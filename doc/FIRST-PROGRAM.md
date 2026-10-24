@@ -6,6 +6,12 @@ then edits, builds and runs a small program outside the checkout. It does not
 require another developer's build tree, private files, a website, or a packaged
 Cwhip release. Cwhip and cedit are prototypes.
 
+The numeric-v2 SDK is source- and native-ABI-incompatible with 0.0.1. This guide
+targets Cwhip 0.0.2 with ABI `numeric-v2`; use it with workspace pins that
+include the pending compiler and consumer migrations listed in
+[WORKFLOW.md](WORKFLOW.md#numeric-v2-integration). Rebuild native packages and
+do not mix files from different SDK prefixes.
+
 Already have a complete installed SDK and cedit? Set `CWHIP_PREFIX` and `PATH`
 as in step 3, then create `hello.cw` yourself using step 4's File > New
 instructions rather than copying the checkout example. Writing a program
@@ -91,7 +97,7 @@ Use a dedicated directory, not `/usr` or `/usr/local`. The workspace's private
 Install a persistent copy through the **component** install interfaces:
 
 ```sh
-export CWHIP_PREFIX="$HOME/.local/opt/cwhip-0.0.1"
+export CWHIP_PREFIX="$HOME/.local/opt/cwhip-0.0.2"
 cmake --install "$CWHIP_WORKSPACE/build-first/compiler-build" \
   --prefix "$CWHIP_PREFIX"
 cmake --install "$CWHIP_WORKSPACE/build-first/apps/cedit" \
@@ -185,7 +191,7 @@ The copied `CMakeLists.txt` contains:
 ```cmake
 cmake_minimum_required(VERSION 3.24)
 project(hello_world LANGUAGES C)
-find_package(Cwhip 0.0.1 EXACT CONFIG REQUIRED)
+find_package(Cwhip 0.0.2 EXACT CONFIG REQUIRED)
 cwhip_add_program(hello SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/hello.cw")
 ```
 
@@ -214,7 +220,7 @@ Use a new build directory when changing SDK installations.
 | Compiler resource paths point at another installation | Clear resource overrides as above; inspect `command -v cwhip` and `cwhip --print-paths`. User/project package roots may legitimately be outside the prefix. |
 | Editor cannot open a display | Launch from a working graphical session. An SSH/headless shell alone does not provide a desktop. |
 | Output did not change | Save the correct `.cw` file, check compilation succeeded, then run the matching CLI or CMake executable. |
-| CMake cannot find Cwhip 0.0.1 | Pass the installed prefix, check it includes `lib/cmake/Cwhip`, and use a fresh build directory. |
+| CMake cannot find Cwhip 0.0.2 | Pass the installed prefix, check it includes `lib/cmake/Cwhip`, and use a fresh build directory. |
 
 Without sufficiently new GTK/SourceView, the compiler-only path still works:
 use a **separate** build directory with `-DCWHIP_GTK=OFF

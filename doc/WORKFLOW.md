@@ -145,10 +145,22 @@ Acceptance includes a clean install prefix with no source-tree assumptions
 and documented compatible versions. Do not treat today's integrated application
 targets as proof that the external repositories can build independently.
 
+### Numeric-v2 integration
+
+The 0.0.2 `numeric-v2` SDK is source- and native-ABI-incompatible with 0.0.1.
+This workspace integration depends on the compiler migration in
+[chucktilbury/cwhip#25](https://github.com/chucktilbury/cwhip/pull/25) and the
+standalone consumer migrations in
+[chucktilbury/cedit#14](https://github.com/chucktilbury/cedit/pull/14),
+[chucktilbury/cdbg#15](https://github.com/chucktilbury/cdbg/pull/15), and
+[chucktilbury/cmacros#6](https://github.com/chucktilbury/cmacros/pull/6).
+These PRs must land before the workspace component pins can select and validate
+the complete migration. Rebuild native packages and do not mix SDK prefixes.
+
 ### 2. Standalone CLI and GUI applications
 
-The standalone `cmacros` CLI builds against the installed Cwhip 0.0.1 SDK
-without GTK and is included in the default workspace build. Its upstream
+The standalone `cmacros` CLI builds against the installed Cwhip 0.0.2
+`numeric-v2` SDK without GTK and is included in the default workspace build. Its upstream
 project owns the implementation, examples, tests and MIT license:
 
 - [chucktilbury/cmacros](https://github.com/chucktilbury/cmacros)
@@ -171,7 +183,8 @@ interface and fixtures. See their
 `-DCMAKE_PREFIX_PATH=/path/to/installed-sdk`; no compiler/workspace checkout
 is required. The umbrella invokes those same interfaces, not the compiler's
 integrated app duplicates. They remain proof-of-concept applications, and
-packaging/CI/release compatibility beyond SDK 0.0.1 remains separate work.
+packaging/CI/release compatibility beyond SDK 0.0.2 `numeric-v2` remains
+separate work.
 GTK 4 >= 4.10 and
 GtkSourceView 5 are application dependencies; `cdbg`
 also needs GDB, and its value inspector needs Python-enabled GDB with
