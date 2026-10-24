@@ -148,14 +148,17 @@ targets as proof that the external repositories can build independently.
 ### Numeric-v2 integration
 
 The 0.0.2 `numeric-v2` SDK is source- and native-ABI-incompatible with 0.0.1.
-This workspace integration depends on the compiler migration in
-[chucktilbury/cwhip#25](https://github.com/chucktilbury/cwhip/pull/25) and the
-standalone consumer migrations in
+This workspace integration depends on the compiler numeric execution migration
+in [chucktilbury/cwhip#25](https://github.com/chucktilbury/cwhip/pull/25) and
+the SDK and stdlib migration in
+[chucktilbury/cwhip#26](https://github.com/chucktilbury/cwhip/pull/26), based on
+#25. The standalone consumer migrations are
 [chucktilbury/cedit#14](https://github.com/chucktilbury/cedit/pull/14),
 [chucktilbury/cdbg#15](https://github.com/chucktilbury/cdbg/pull/15), and
 [chucktilbury/cmacros#6](https://github.com/chucktilbury/cmacros/pull/6).
-These PRs must land before the workspace component pins can select and validate
-the complete migration. Rebuild native packages and do not mix SDK prefixes.
+These PRs must land in dependency order before the workspace component pins can
+select and validate the complete migration. Rebuild native packages and do not
+mix SDK prefixes.
 
 ### 2. Standalone CLI and GUI applications
 
