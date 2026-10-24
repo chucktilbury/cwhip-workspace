@@ -11,12 +11,12 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 HELLO = """import math as M
 class Bridge {
-    int answer()
+    int64 answer()
     void message() {
         inline() { fputs("inline;", stdout); }
     }
 }
-int Bridge.answer() from "external_answer"
+int64 Bridge.answer() from "external_answer"
 start {
     Bridge b()
     b.message()
@@ -26,7 +26,10 @@ start {
 """
 PROJECT = """cmake_minimum_required(VERSION 3.24)
 project(external_sdk_user LANGUAGES C)
-find_package(Cwhip 0.0.1 EXACT CONFIG REQUIRED)
+find_package(Cwhip 0.0.2 EXACT CONFIG REQUIRED)
+if(NOT Cwhip_SDK_ABI STREQUAL "numeric-v2")
+    message(FATAL_ERROR "external project requires the Cwhip numeric-v2 SDK ABI")
+endif()
 add_library(binding OBJECT native.c)
 target_include_directories(binding PRIVATE "${Cwhip_INCLUDE_DIR}")
 cwhip_add_program(hello SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/hello.cw"
@@ -132,7 +135,7 @@ def main():
             hidden.rename(runtime)
         wrong_version = work / "wrong version"
         wrong_version.mkdir()
-        (wrong_version / "CMakeLists.txt").write_text(PROJECT.replace("0.0.1", "999.0.0"))
+        (wrong_version / "CMakeLists.txt").write_text(PROJECT.replace("0.0.2", "999.0.0"))
         run(args.cmake, "-S", wrong_version, "-B", work / "incompatible sdk",
             f"-DCMAKE_PREFIX_PATH={relocated}", fail=True)
         if args.cmacros == "ON":

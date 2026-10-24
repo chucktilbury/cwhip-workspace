@@ -143,8 +143,12 @@ class SiteTests(unittest.TestCase):
 
     def test_invalid_api_is_an_error(self):
         with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory) / "workspace"
+            workspace.mkdir()
+            self._make_workspace(workspace)
             with self.assertRaisesRegex(ValueError, "lacks index.html"):
-                site.build(ROOT, Path(directory) / "work", Path(directory) / "missing")
+                site.build(workspace, Path(directory) / "work",
+                           Path(directory) / "missing")
 
     def test_missing_document_is_an_error(self):
         with tempfile.TemporaryDirectory() as directory:

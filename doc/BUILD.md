@@ -39,8 +39,8 @@ preserved when no build type is selected. GNU/Clang SDK runtimes retain type
 debug metadata even in Release, for source-free debugger object inspection;
 this does not change runtime optimization or bundle system libraries.
 
-The `cmacros` CLI is built against the staged Cwhip 0.0.1 SDK and has no GTK
-dependency. GTK 4 >= 4.10 and GtkSourceView 5 development packages are
+The `cmacros` CLI is built against the staged Cwhip 0.0.2 `numeric-v2` SDK and
+has no GTK dependency. GTK 4 >= 4.10 and GtkSourceView 5 development packages are
 detected through pkg-config. When both bindings are enabled, the default
 build includes the editor and debugger from **editor/src** and **debugger/src**,
 not the duplicate integrated application sources in the compiler checkout.
