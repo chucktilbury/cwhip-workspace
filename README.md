@@ -4,6 +4,11 @@ Pinned development umbrella for the Cwhip compiler, cmacros CLI, editor,
 debugger, and website. Component source and history remain owned by their repositories;
 this repository owns the selected revisions and cross-repository workflow.
 
+The workspace-owned `.cw` example and test-generated source use the current
+Cwhip syntax. The compiler repository owns the language specification: see its
+[grammar](https://github.com/chucktilbury/cwhip/blob/master/doc/GRAMMAR.md) and
+[language reference](https://github.com/chucktilbury/cwhip/blob/master/doc/LANGUAGE-REFERENCE.md).
+
 **New to Cwhip?** [From no installation to a first program](doc/FIRST-PROGRAM.md)
 documents the intended 0.0.2 `numeric-v2` source-install workflow. It is not
 usable with the currently committed 0.0.1 component pins; see the
